@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/art_parameters.dart';
 import '../models/art_service.dart';
+import '../models/particle_system.dart';
 import '../widgets/particle_canvas.dart';
 import '../widgets/parameter_controls.dart';
 

@@ -88,10 +88,10 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
   void _handlePanUpdate(DragUpdateDetails details) {
     final box = context.findRenderObject() as RenderBox;
     final localPosition = box.globalToLocal(details.globalPosition);
-    _algorithm.updateInteraction(localPosition);
+    _algorithm.handleInput(localPosition, true);
   }
 
   void _handlePanEnd(DragEndDetails details) {
-    _algorithm.updateInteraction(null);
+    _algorithm.handleInput(Offset.zero, false);
   }
 }
