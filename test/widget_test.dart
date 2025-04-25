@@ -1,27 +1,25 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:procedural_art_generator/main.dart';
 import 'package:procedural_art_generator/app.dart';
 import 'package:procedural_art_generator/screens/art_creation_screen.dart';
 import 'package:procedural_art_generator/widgets/parameter_controls.dart';
 import 'package:procedural_art_generator/widgets/art_canvas.dart';
 import 'package:procedural_art_generator/models/art_parameters.dart';
+import 'package:procedural_art_generator/core/models/parameter_set.dart';
 
 void main() {
   testWidgets('App smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const App());
+    await tester.pumpWidget(const ProviderScope(
+      child: ProceduralArtGeneratorApp(),
+    ));
     expect(find.byType(MaterialApp), findsOneWidget);
   });
 
   group('ArtCreationScreen tests', () {
     testWidgets('Should show art canvas and parameter controls', (WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: ArtCreationScreen()));
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(home: ArtCreationScreen())));
       await tester.pumpAndSettle();
 
       expect(find.byType(ArtCanvas), findsOneWidget);
@@ -29,7 +27,7 @@ void main() {
     });
 
     testWidgets('Should toggle controls visibility', (WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: ArtCreationScreen()));
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(home: ArtCreationScreen())));
       await tester.pumpAndSettle();
 
       // Initially controls should be visible
@@ -46,7 +44,7 @@ void main() {
     });
 
     testWidgets('Should update parameters when controls change', (WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: ArtCreationScreen()));
+      await tester.pumpWidget(ProviderScope(child: MaterialApp(home: ArtCreationScreen())));
       await tester.pumpAndSettle();
 
       // Find a slider (e.g., particle count slider)
@@ -67,7 +65,10 @@ void main() {
     late ArtParameters testParameters;
 
     setUp(() {
-      testParameters = ArtParameters();
+      testParameters = ArtParameters(
+        name: 'Test Art',
+        canvasSize: const Size(800, 600),
+      );
     });
 
     testWidgets('Should display all parameter sections', (WidgetTester tester) async {
@@ -114,8 +115,14 @@ void main() {
   });
 
   group('Art canvas tests', () {
+    late ParameterSet parameterSet;
+    
+    setUp(() {
+      parameterSet = ParameterSet.defaultSettings();
+    });
+
     testWidgets('Should respond to user interaction when enabled', (WidgetTester tester) async {
-      final parameters = ArtParameters()..interactionEnabled = true;
+      final parameters = parameterSet.copyWith(interactionEnabled: true);
 
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
@@ -131,7 +138,7 @@ void main() {
     });
 
     testWidgets('Should ignore user interaction when disabled', (WidgetTester tester) async {
-      final parameters = ArtParameters()..interactionEnabled = false;
+      final parameters = parameterSet.copyWith(interactionEnabled: false);
 
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
