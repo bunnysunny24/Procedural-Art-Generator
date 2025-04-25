@@ -1,14 +1,14 @@
-/// The mode for determining colors in the art generation
+/// Defines how colors are assigned in the art generation process
 enum ColorMode {
-  /// Colors are selected randomly from the palette
+  /// Colors are assigned randomly from the palette
   random,
   
-  /// Colors are determined by position (using a gradient or mapping technique)
+  /// Colors are assigned based on position
   position,
   
-  /// Colors are determined by velocity
-  velocity,
+  /// Colors are assigned based on time/animation progress
+  time,
   
-  /// Colors are determined by the flow field angle
-  flowField,
+  /// Colors are assigned based on flow field values
+  flow
 }

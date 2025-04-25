@@ -1,59 +1,71 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:myapp/core/models/color_mode.dart';
 
-/// Defines how colors are selected from a palette
-enum ColorMode {
-  /// Colors are selected randomly from the palette
-  random,
-  
-  /// Colors are selected based on position/progress
-  position,
-  
-  /// Colors are interpolated based on some parameter
-  gradient
-}
-
-/// Represents a color palette for generative art
+/// Represents a color palette for the generative art
 class ColorPalette {
-  /// List of colors in this palette
+  /// List of colors in the palette
   final List<Color> colors;
   
-  /// The mode for selecting colors from this palette
+  /// How colors should be assigned
   final ColorMode colorMode;
   
-  /// Random number generator for color selection
+  /// Random number generator
   final Random _random = Random();
   
-  /// Creates a new color palette with the given colors and mode
+  /// Creates a new color palette
   ColorPalette({
-    required this.colors,
-    this.colorMode = ColorMode.gradient,
-  }) : assert(colors.isNotEmpty, 'Color palette must contain at least one color');
+    required this.colors, 
+    this.colorMode = ColorMode.random
+  });
+  
+  /// Creates a color palette from a list of hex strings
+  factory ColorPalette.fromHexColors(List<String> hexColors, {ColorMode colorMode = ColorMode.random}) {
+    return ColorPalette(
+      colors: hexColors.map((hex) => _hexToColor(hex)).toList(),
+      colorMode: colorMode,
+    );
+  }
   
   /// Returns a random color from the palette
   Color getRandomColor() {
+    if (colors.isEmpty) return Colors.black;
     return colors[_random.nextInt(colors.length)];
   }
   
-  /// Returns a color based on the progress (0.0 - 1.0) through the palette
+  /// Returns a color at the given progress (0.0 - 1.0) by interpolating through the palette
   Color getColorAtProgress(double progress) {
-    if (colors.length == 1) return colors[0];
+    if (colors.isEmpty) return Colors.black;
+    if (colors.length == 1) return colors.first;
     
-    // Clamp progress to 0.0 - 1.0
+    // Clamp progress between 0 and 1
     final clampedProgress = progress.clamp(0.0, 1.0);
     
-    // Calculate which colors to interpolate between
-    final segmentCount = colors.length - 1;
-    final segmentLength = 1.0 / segmentCount;
-    final segmentIndex = (clampedProgress / segmentLength).floor();
+    // Calculate the position in the color array
+    final position = clampedProgress * (colors.length - 1);
+    final index = position.floor();
     
-    // Ensure we don't go out of bounds
-    final safeIndex = segmentIndex.clamp(0, segmentCount - 1);
+    // If we're exactly on a color, return it
+    if (position == index.toDouble()) return colors[index];
     
-    // Calculate progress within this segment
-    final segmentProgress = (clampedProgress - (safeIndex * segmentLength)) / segmentLength;
+    // Otherwise interpolate between the two closest colors
+    final nextIndex = index + 1;
+    final colorWeight = position - index;
     
-    // Interpolate between the two colors
-    return Color.lerp(colors[safeIndex], colors[safeIndex + 1], segmentProgress)!;
+    return Color.lerp(colors[index], colors[nextIndex], colorWeight)!;
+  }
+  
+  /// Converts a hex string to a Color
+  static Color _hexToColor(String hexString) {
+    final hex = hexString.replaceAll('#', '');
+    
+    if (hex.length == 6) {
+      return Color(int.parse('0xFF$hex'));
+    } else if (hex.length == 8) {
+      return Color(int.parse('0x$hex'));
+    } else {
+      // Default to black for invalid hex
+      return Colors.black;
+    }
   }
 }
