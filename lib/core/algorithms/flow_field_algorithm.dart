@@ -2,422 +2,408 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:vector_math/vector_math_64.dart';
+import 'package:myapp/core/algorithms/generative_algorithm.dart';
+import 'package:myapp/core/models/parameter_set.dart';
+import 'package:myapp/core/models/color_palette.dart';
 
-import '../models/parameter_set.dart';
-import '../models/particle.dart';
-import '../models/color_palette.dart';
-import 'generative_algorithm.dart';
+/// A particle in the flow field
+class FlowParticle {
+  /// Current position
+  Offset position;
+  
+  /// Current velocity
+  Offset velocity;
+  
+  /// Current acceleration
+  Offset acceleration = Offset.zero;
+  
+  /// Maximum speed
+  final double maxSpeed;
+  
+  /// Particle color
+  Color color;
+  
+  /// Particle age in seconds
+  double age = 0;
+  
+  /// Maximum lifetime in seconds
+  final double maxLifetime;
+  
+  /// Size of the particle
+  double size;
+  
+  /// History of positions for trail rendering
+  final List<Offset> history;
+  
+  /// Maximum history length
+  final int maxHistory;
+  
+  /// Whether the particle is alive
+  bool get isAlive => age < maxLifetime;
+  
+  /// Creates a new flow particle
+  FlowParticle({
+    required this.position,
+    required this.velocity,
+    required this.maxSpeed,
+    required this.color,
+    required this.maxLifetime,
+    required this.size,
+    required this.maxHistory,
+  }) : history = [position];
+  
+  /// Update the particle state
+  void update(double deltaTime, Function(Offset) getForce) {
+    // Apply flow field force
+    acceleration = getForce(position);
+    
+    // Update velocity
+    velocity += acceleration * deltaTime;
+    
+    // Limit speed
+    if (velocity.distance > maxSpeed) {
+      velocity = Offset(velocity.dx, velocity.dy) * (maxSpeed / velocity.distance);
+    }
+    
+    // Update position
+    position += velocity * deltaTime;
+    
+    // Record history for trails
+    history.add(position);
+    if (history.length > maxHistory) {
+      history.removeAt(0);
+    }
+    
+    // Update age
+    age += deltaTime;
+  }
+}
 
-/// Implementation of flow field generative algorithm
+/// Flow Field algorithm implementation
 class FlowFieldAlgorithm extends GenerativeAlgorithm {
-  /// List of particles flowing through the field
-  final List<Particle> _particles = [];
-  
-  /// The flow field grid storing direction vectors
-  late List<List<Vector2>> _flowField;
-  
-  /// Grid cell size for the flow field
-  late double _cellSize;
-  
-  /// Number of columns in the flow field grid
-  late int _cols;
-  
-  /// Number of rows in the flow field grid
-  late int _rows;
-  
-  /// Random number generator
+  /// Random generator
   final Random _random = Random();
   
-  /// Current interaction point
-  Offset? _interactionPoint;
+  /// List of particles
+  final List<FlowParticle> _particles = [];
   
-  /// Whether interaction is currently active
-  bool _interactionActive = false;
+  /// Resolution of the flow field grid
+  late int _gridResolutionX;
+  late int _gridResolutionY;
   
-  /// Noise z-offset for field evolution
-  double _zOffset = 0.0;
-
-  FlowFieldAlgorithm(super.parameters) {
+  /// Cell size
+  late double _cellWidth;
+  late double _cellHeight;
+  
+  /// Flow field vectors
+  late List<List<double>> _flowField;
+  
+  /// Noise parameters
+  double _noiseScale = 0.01;
+  double _noiseStrength = 1.0;
+  double _noiseZ = 0.0;
+  double _noiseTurbulence = 0.5;
+  
+  /// Creates a new flow field algorithm
+  FlowFieldAlgorithm(ParameterSet parameters) : super(parameters) {
     initialize();
+  }
+  
+  @override
+  void initialize() {
+    // Clear existing particles
+    _particles.clear();
+    
+    // Initialize flow field parameters based on parameter set
+    _noiseScale = parameters.getDouble('noiseScale', 0.01);
+    _noiseStrength = parameters.getDouble('fieldStrength', 1.0);
+    _noiseTurbulence = parameters.getDouble('turbulence', 0.5);
+    
+    // Setup flow field grid
+    _gridResolutionX = parameters.getInt('gridResolutionX', 50);
+    _gridResolutionY = parameters.getInt('gridResolutionY', 50);
+    
+    _cellWidth = parameters.canvasSize.width / _gridResolutionX;
+    _cellHeight = parameters.canvasSize.height / _gridResolutionY;
+    
+    // Initialize flow field
+    _flowField = List.generate(
+      _gridResolutionX,
+      (_) => List.generate(_gridResolutionY, (_) => 0.0)
+    );
+    
+    // Generate initial flow field
+    _generateFlowField();
+    
+    // Create initial particles
+    _createParticles(parameters.getInt('particleCount', 500));
   }
 
   @override
-  void initialize() {
-    // Calculate grid dimensions
-    _cellSize = _getCellSize();
-    _cols = (parameters.canvasSize.width / _cellSize).ceil();
-    _rows = (parameters.canvasSize.height / _cellSize).ceil();
-    
-    // Initialize flow field
-    _initializeFlowField();
-    
-    // Create particles
-    _particles.clear();
-    _createParticles();
-    
-    // Reset noise offset
-    _zOffset = 0.0;
+  void onParametersUpdated() {
+    initialize();
   }
   
-  /// Calculate cell size based on canvas dimensions
-  double _getCellSize() {
-    // Extract from algorithm specific params if available
-    if (parameters.algorithmSpecificParams.containsKey('cellSize')) {
-      return parameters.algorithmSpecificParams['cellSize'] as double;
-    }
-    
-    // Default: divide the smallest dimension by 20-40 cells
-    final smallestDimension = min(
-      parameters.canvasSize.width, 
-      parameters.canvasSize.height
-    );
-    return smallestDimension / 30.0;
-  }
-  
-  /// Initialize the flow field with direction vectors
-  void _initializeFlowField() {
-    _flowField = List.generate(
-      _cols, 
-      (_) => List.generate(
-        _rows, 
-        (_) => Vector2(0, 0),
-      ),
-    );
-    
-    // Generate the initial field
-    _generateFlowField();
-  }
-  
-  /// Generate the flow field using noise
+  /// Generate the flow field
   void _generateFlowField() {
-    final noiseScale = _getNoiseScale();
-    
-    for (int i = 0; i < _cols; i++) {
-      for (int j = 0; j < _rows; j++) {
-        // Use simplified noise approximation
-        final angle = _simpleNoise(
-          i * noiseScale, 
-          j * noiseScale, 
-          _zOffset
-        ) * 2 * pi;
-        
-        // Create a unit vector at that angle
-        _flowField[i][j] = Vector2(cos(angle), sin(angle));
+    for (int x = 0; x < _gridResolutionX; x++) {
+      for (int y = 0; y < _gridResolutionY; y++) {
+        // Use Perlin noise or a similar algorithm to generate the flow field
+        // For simplicity, using a simple mathematical function here
+        final value = _simpleNoise(x * _noiseScale, y * _noiseScale, _noiseZ) * 2 * pi;
+        _flowField[x][y] = value;
       }
     }
   }
   
-  /// Get noise scale factor from parameters or defaults
-  double _getNoiseScale() {
-    if (parameters.algorithmSpecificParams.containsKey('noiseScale')) {
-      return parameters.algorithmSpecificParams['noiseScale'] as double;
-    }
-    return 0.1; // Default scale
-  }
-  
-  /// Simple noise function (simplex noise would be better but this is simpler)
+  /// Simple noise function (replace with Perlin noise for better results)
   double _simpleNoise(double x, double y, double z) {
-    // Combine several sin waves at different frequencies
-    return 0.5 + 
-      0.5 * sin(x * 0.3 + z) * 
-      cos(y * 0.2 + z * 0.7) * 
-      sin((x + y) * 0.1 + z * 0.3);
+    // Simple noise function based on sine waves
+    // In production, use a library that provides Perlin/Simplex noise
+    return sin(x * _noiseTurbulence + z) * cos(y * _noiseTurbulence + z) * 0.5 + 0.5;
   }
   
-  /// Create initial particles
-  void _createParticles() {
-    for (int i = 0; i < parameters.particleCount; i++) {
-      _particles.add(_createParticle());
-    }
-  }
-  
-  /// Create a single particle with randomized properties
-  Particle _createParticle() {
-    final position = _getRandomPosition();
-    final size = _getRandomSize();
-    final color = _getParticleColor(position);
+  /// Create particles
+  void _createParticles(int count) {
+    final maxSpeed = parameters.getDouble('maxSpeed', 100);
+    final particleSize = parameters.getDouble('particleSize', 3);
+    final maxLifetime = parameters.getDouble('particleLifetime', 10);
+    final trailLength = parameters.getInt('trailLength', 20);
     
-    // For flow fields, initial velocity is based on the flow field
-    final velocity = _getFlowDirectionAt(position);
-    
-    return Particle(
-      position: position,
-      velocity: velocity,
-      acceleration: Vector2(0, 0),
-      size: size,
-      color: color,
-      shape: parameters.particleShape,
-      life: 1.0,
-      decay: 0.001 + _random.nextDouble() * 0.004,
-    );
-  }
-  
-  /// Generate a random position within canvas bounds
-  Vector2 _getRandomPosition() {
-    return Vector2(
-      _random.nextDouble() * parameters.canvasSize.width,
-      _random.nextDouble() * parameters.canvasSize.height,
-    );
-  }
-  
-  /// Get the flow direction at a specific position
-  Vector2 _getFlowDirectionAt(Vector2 position) {
-    // Find grid cell
-    int col = (position.x / _cellSize).floor();
-    int row = (position.y / _cellSize).floor();
-    
-    // Constrain to grid bounds
-    col = col.clamp(0, _cols - 1);
-    row = row.clamp(0, _rows - 1);
-    
-    // Get flow direction at this cell
-    return _flowField[col][row].clone();
-  }
-  
-  /// Generate a random particle size within the min/max range
-  double _getRandomSize() {
-    return parameters.minParticleSize + 
-      _random.nextDouble() * (parameters.maxParticleSize - parameters.minParticleSize);
-  }
-  
-  /// Get particle color based on position and color palette settings
-  Color _getParticleColor(Vector2 position) {
-    final colorPalette = parameters.colorPalette;
-    
-    switch (colorPalette.colorMode) {
-      case ColorMode.single:
-        return colorPalette.colors.isNotEmpty 
-            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
-            : Colors.white.withOpacity(colorPalette.opacity);
-        
-      case ColorMode.gradient:
-        final progress = position.y / parameters.canvasSize.height;
-        return colorPalette.getColorAtProgress(progress);
-        
-      case ColorMode.position:
-        // Calculate angle from center as the progress
-        final centerX = parameters.canvasSize.width / 2;
-        final centerY = parameters.canvasSize.height / 2;
-        final angle = atan2(
-          position.y - centerY, 
-          position.x - centerX
-        );
-        final progress = (angle + pi) / (2 * pi);
-        return colorPalette.getColorAtProgress(progress);
-        
-      case ColorMode.velocity:
-        // Flow direction mapped to color (will be updated during updates)
-        return colorPalette.getColorAtProgress(0.5);
-        
-      case ColorMode.random:
-        return colorPalette.getRandomColor();
-        
-      default:
-        return colorPalette.colors.isNotEmpty 
-            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
-            : Colors.white.withOpacity(colorPalette.opacity);
+    for (int i = 0; i < count; i++) {
+      // Random position within canvas
+      final position = Offset(
+        _random.nextDouble() * parameters.canvasSize.width,
+        _random.nextDouble() * parameters.canvasSize.height
+      );
+      
+      // Initial velocity (could be random or based on the flow field)
+      final velocity = Offset(
+        _random.nextDouble() * 2 - 1,
+        _random.nextDouble() * 2 - 1
+      ) * (maxSpeed * 0.5);
+      
+      // Color based on position or random
+      final colorProgress = position.dx / parameters.canvasSize.width;
+      Color color;
+      
+      switch (parameters.colorPalette.colorMode) {
+        case ColorMode.random:
+          color = parameters.colorPalette.getRandomColor();
+          break;
+        case ColorMode.position:
+          color = parameters.colorPalette.getColorAtProgress(colorProgress);
+          break;
+        default:
+          color = parameters.colorPalette.getColorAtProgress(colorProgress);
+      }
+      
+      // Create and add particle
+      _particles.add(FlowParticle(
+        position: position,
+        velocity: velocity,
+        maxSpeed: maxSpeed,
+        color: color,
+        maxLifetime: maxLifetime,
+        size: particleSize,
+        maxHistory: trailLength,
+      ));
     }
   }
   
   @override
-  void update() {
-    // Evolve the flow field over time
-    _zOffset += 0.003 * parameters.speed;
+  void update(double deltaTime) {
+    // Limit delta time to prevent large jumps
+    final dt = min(deltaTime, 1/30);
     
-    // Regenerate flow field periodically
-    if (_zOffset % 0.2 < 0.01) {
+    // Update noise z dimension for field animation
+    if (parameters.getBool('animateField', true)) {
+      _noiseZ += parameters.getDouble('fieldAnimationSpeed', 0.1) * dt;
       _generateFlowField();
     }
     
-    // Apply interaction forces if active
-    if (_interactionActive && _interactionPoint != null && parameters.interactionEnabled) {
-      _applyInteractionForces();
-    }
-    
-    // Update all particles
-    _updateParticles();
-  }
-  
-  /// Update all particles
-  void _updateParticles() {
+    // Update particles
     for (int i = _particles.length - 1; i >= 0; i--) {
-      // Get flow force at particle position
-      final flowForce = _getFlowDirectionAt(_particles[i].position);
-      
-      // Scale by parameters
-      flowForce.scale(parameters.speed * 0.3);
-      
-      // Apply to particle
-      _particles[i].applyForce(flowForce);
+      final particle = _particles[i];
       
       // Update particle
-      _particles[i].update(parameters);
+      particle.update(dt, _getFlowFieldForce);
       
-      // Update color if using velocity-based coloring
-      if (parameters.colorPalette.colorMode == ColorMode.velocity) {
-        final velocity = _particles[i].velocity;
-        final speed = velocity.length;
-        final maxSpeed = 3.0 * parameters.speed;
-        final progress = (speed / maxSpeed).clamp(0.0, 1.0);
-        _particles[i].color = parameters.colorPalette.getColorAtProgress(progress);
+      // Remove dead particles
+      if (!particle.isAlive) {
+        _particles.removeAt(i);
       }
-      
-      // Replace dead particles
-      if (!_particles[i].isAlive()) {
-        _particles[i] = _createParticle();
-      }
+    }
+    
+    // Add new particles if needed to maintain count
+    final targetCount = parameters.getInt('particleCount', 500);
+    if (_particles.length < targetCount) {
+      _createParticles(targetCount - _particles.length);
     }
   }
   
-  /// Apply interaction forces to the flow field
-  void _applyInteractionForces() {
-    if (_interactionPoint == null) return;
+  /// Get the force for a particle at the given position
+  Offset _getFlowFieldForce(Offset position) {
+    // Get grid cell coordinates
+    int x = (position.dx / _cellWidth).floor();
+    int y = (position.dy / _cellHeight).floor();
     
-    final strength = parameters.interactionStrength;
-    final interactX = _interactionPoint!.dx;
-    final interactY = _interactionPoint!.dy;
-    final radius = parameters.interactionRadius;
-    
-    // Find affected grid cells
-    final minCol = max(0, ((interactX - radius) / _cellSize).floor());
-    final maxCol = min(_cols - 1, ((interactX + radius) / _cellSize).ceil());
-    final minRow = max(0, ((interactY - radius) / _cellSize).floor());
-    final maxRow = min(_rows - 1, ((interactY + radius) / _cellSize).ceil());
-    
-    for (int i = minCol; i <= maxCol; i++) {
-      for (int j = minRow; j <= maxRow; j++) {
-        final cellX = i * _cellSize + _cellSize / 2;
-        final cellY = j * _cellSize + _cellSize / 2;
-        
-        final distance = sqrt(
-          pow(cellX - interactX, 2) + pow(cellY - interactY, 2)
-        );
-        
-        if (distance < radius) {
-          // Direction from interaction point to cell
-          final angle = atan2(cellY - interactY, cellX - interactX);
-          
-          // Strength decreases with distance
-          final factor = 1.0 - (distance / radius);
-          
-          // Create a force vector in that direction
-          final forceX = cos(angle) * factor * strength;
-          final forceY = sin(angle) * factor * strength;
-          
-          // Add to existing flow
-          _flowField[i][j].add(Vector2(forceX, forceY));
-          _flowField[i][j].normalize();
-        }
-      }
+    // Bounds check
+    if (x < 0 || x >= _gridResolutionX || y < 0 || y >= _gridResolutionY) {
+      // If out of bounds, return a force pushing back into the canvas
+      final centerX = parameters.canvasSize.width / 2;
+      final centerY = parameters.canvasSize.height / 2;
+      return Offset(
+        centerX - position.dx,
+        centerY - position.dy,
+      ).normalize() * _noiseStrength;
     }
+    
+    // Get angle from flow field
+    final angle = _flowField[x][y];
+    
+    // Convert angle to vector
+    return Offset(
+      cos(angle),
+      sin(angle)
+    ) * _noiseStrength;
   }
   
   @override
-  void render(Canvas canvas, Size size) {
-    // Draw background
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = parameters.backgroundColor,
-    );
-    
-    // Optionally display the flow field grid for debugging
-    if (parameters.algorithmSpecificParams['showFlowField'] == true) {
-      _renderFlowField(canvas);
-    }
-    
-    // Draw all particles
+  void render(Canvas canvas) {
+    // Render each particle and its trail
     for (final particle in _particles) {
-      particle.render(canvas, parameters);
-    }
-    
-    // Draw interaction indicator if active
-    if (parameters.interactionEnabled && _interactionPoint != null && _interactionActive) {
-      canvas.drawCircle(
-        _interactionPoint!,
-        parameters.interactionRadius * 0.5,
-        Paint()
-          ..color = Colors.white.withOpacity(0.3)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-    }
-  }
-  
-  /// Render the flow field grid for visualization
-  void _renderFlowField(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-    
-    for (int i = 0; i < _cols; i++) {
-      for (int j = 0; j < _rows; j++) {
-        final x = i * _cellSize;
-        final y = j * _cellSize;
+      // Skip rendering if it has too few history points
+      if (particle.history.length < 2) continue;
+      
+      // Create trail gradient
+      final trailPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = particle.size
+        ..strokeCap = StrokeCap.round;
+      
+      // Draw trail segments with gradually increasing transparency
+      for (int i = 0; i < particle.history.length - 1; i++) {
+        final progress = i / (particle.history.length - 1);
+        final opacityFactor = progress * parameters.getDouble('trailOpacity', 0.5);
         
-        // Draw cell
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, _cellSize, _cellSize),
-          paint,
-        );
-        
-        // Draw direction vector
-        final center = Offset(x + _cellSize / 2, y + _cellSize / 2);
-        final direction = _flowField[i][j].normalized() * (_cellSize * 0.4);
+        trailPaint.color = particle.color.withOpacity(opacityFactor);
         
         canvas.drawLine(
-          center,
-          Offset(center.dx + direction.x, center.dy + direction.y),
-          paint,
+          particle.history[i],
+          particle.history[i + 1],
+          trailPaint
         );
+      }
+      
+      // Draw particle head
+      final particlePaint = Paint()
+        ..color = particle.color
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(
+        particle.position,
+        particle.size,
+        particlePaint
+      );
+    }
+    
+    // Draw flow field for debugging if enabled
+    if (parameters.getBool('showFlowField', false)) {
+      _renderFlowField(canvas);
+    }
+  }
+  
+  /// Render the flow field for visualization/debugging
+  void _renderFlowField(Canvas canvas) {
+    final fieldPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    
+    // Draw a small line in each cell representing the flow direction
+    for (int x = 0; x < _gridResolutionX; x += 3) {
+      for (int y = 0; y < _gridResolutionY; y += 3) {
+        final centerX = x * _cellWidth + _cellWidth / 2;
+        final centerY = y * _cellHeight + _cellHeight / 2;
+        final center = Offset(centerX, centerY);
+        
+        final angle = _flowField[x][y];
+        final lineLength = min(_cellWidth, _cellHeight) * 0.8;
+        
+        final end = center + Offset(
+          cos(angle) * lineLength / 2,
+          sin(angle) * lineLength / 2
+        );
+        
+        canvas.drawLine(center, end, fieldPaint);
       }
     }
   }
   
   @override
-  void handleInteraction(Offset? position, bool isPressed) {
-    _interactionPoint = position;
-    _interactionActive = isPressed;
-  }
-  
-  @override
-  void reset() {
-    initialize();
-  }
-  
-  @override
-  void updateParameters(ParameterSet newParameters) {
-    final needsRecreate = 
-        parameters.particleCount != newParameters.particleCount ||
-        parameters.particleShape != newParameters.particleShape ||
-        parameters.canvasSize != newParameters.canvasSize;
-    
-    parameters.copyWith(
-      particleCount: newParameters.particleCount,
-      particleShape: newParameters.particleShape,
-      canvasSize: newParameters.canvasSize,
-      particleBlending: newParameters.particleBlending,
-      minParticleSize: newParameters.minParticleSize,
-      maxParticleSize: newParameters.maxParticleSize,
-      speed: newParameters.speed,
-      turbulence: newParameters.turbulence,
-      friction: newParameters.friction,
-      interactionEnabled: newParameters.interactionEnabled,
-      interactionStrength: newParameters.interactionStrength,
-      interactionRadius: newParameters.interactionRadius,
-      colorPalette: newParameters.colorPalette,
-      algorithmSpecificParams: newParameters.algorithmSpecificParams,
-    );
-    
-    if (needsRecreate) {
-      initialize();
+  void handleInteraction(Offset position, bool isActive) {
+    if (isActive) {
+      // Create a disturbance in the flow field centered at the touch position
+      final disturbanceRadius = parameters.getDouble('touchDisturbanceRadius', 100);
+      final disturbanceStrength = parameters.getDouble('touchDisturbanceStrength', 2.0);
+      
+      for (int x = 0; x < _gridResolutionX; x++) {
+        for (int y = 0; y < _gridResolutionY; y++) {
+          final cellCenterX = x * _cellWidth + _cellWidth / 2;
+          final cellCenterY = y * _cellHeight + _cellHeight / 2;
+          final cellCenter = Offset(cellCenterX, cellCenterY);
+          
+          // Calculate distance to touch
+          final distance = (position - cellCenter).distance;
+          
+          // Apply disturbance if within radius
+          if (distance < disturbanceRadius) {
+            // Calculate angle pointing away from touch
+            final angle = atan2(
+              cellCenterY - position.dy,
+              cellCenterX - position.dx
+            );
+            
+            // Calculate strength based on distance (stronger closer to touch)
+            final strength = 1 - (distance / disturbanceRadius);
+            
+            // Modify flow field
+            _flowField[x][y] = angle * strength * disturbanceStrength + 
+              _flowField[x][y] * (1 - strength);
+          }
+        }
+      }
+      
+      // Also add some new particles at the touch position
+      final touchParticleCount = parameters.getInt('touchParticleCount', 20);
+      
+      for (int i = 0; i < touchParticleCount; i++) {
+        final angle = _random.nextDouble() * 2 * pi;
+        final speed = parameters.getDouble('maxSpeed', 100) * _random.nextDouble();
+        
+        final velocity = Offset(
+          cos(angle) * speed,
+          sin(angle) * speed
+        );
+        
+        final offset = Offset(
+          (_random.nextDouble() - 0.5) * 20,
+          (_random.nextDouble() - 0.5) * 20
+        );
+        
+        final colorProgress = position.dx / parameters.canvasSize.width;
+        
+        _particles.add(FlowParticle(
+          position: position + offset,
+          velocity: velocity,
+          maxSpeed: parameters.getDouble('maxSpeed', 100),
+          color: parameters.colorPalette.getColorAtProgress(colorProgress),
+          maxLifetime: parameters.getDouble('particleLifetime', 10),
+          size: parameters.getDouble('particleSize', 3),
+          maxHistory: parameters.getInt('trailLength', 20),
+        ));
+      }
     }
-  }
-  
-  @override
-  void dispose() {
-    _particles.clear();
-    _flowField.clear();
   }
 }
