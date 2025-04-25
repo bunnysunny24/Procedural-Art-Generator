@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' as material;
 
 import '../models/parameter_set.dart';
 import '../models/particle.dart';
+import '../models/color_mode.dart';
 
 /// Implementation of a flow field algorithm for generative art
 class FlowFieldAlgorithm {

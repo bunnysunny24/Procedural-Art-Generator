@@ -104,17 +104,13 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
     
     try {
       final format = await _showExportFormatDialog();
-      if (format == null) {
-        return;
-      }
+      if (format == null) return;
       
-      if (canvasKey.currentState == null) return;
+      if (canvasKey.currentContext == null) return;
 
       final artService = ArtService(parameters);
       final filePath = await artService.saveArtworkToFile();
       
-      if (filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
       if (filePath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Artwork exported to: $filePath')),
@@ -137,9 +133,8 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   
   Future<void> _shareArtwork() async {
     try {
-      if (canvasKey.currentState == null) return;
-      final particleSystem = ParticleSystem(parameters);
-      await ArtService.shareArtwork(particleSystem);
+      if (canvasKey.currentContext == null) return;
+      await ArtService.shareArtwork(parameters);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing artwork: $e')),
