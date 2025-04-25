@@ -2,16 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../algorithms/generative_algorithm.dart';
 import 'color_palette.dart';
-
-enum ColorMode {
-  single,
-  gradient,
-  position,
-  velocity,
-  age,
-  random,
-  custom,
-}
+import 'color_mode.dart';
 
 enum MovementBehavior {
   directed,

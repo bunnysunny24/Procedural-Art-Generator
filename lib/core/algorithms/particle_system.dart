@@ -199,7 +199,7 @@ class ParticleSystemAlgorithm {
       case ColorMode.age:
       case ColorMode.custom:
         if (colorPalette.colors.isEmpty) {
-          return material.Colors.white.withOpacity(colorPalette.opacity);
+          return Colors.white.withOpacity(colorPalette.opacity);
         }
         return colorPalette.colors.first.withOpacity(colorPalette.opacity);
     }
@@ -448,7 +448,11 @@ class ParticleSystemAlgorithm {
         particle.color = colorPalette.getColorAtProgress(progress);
         break;
         
-      default:
+      case ColorMode.position:
+      case ColorMode.gradient:
+      case ColorMode.random:
+      case ColorMode.single:
+      case ColorMode.custom:
         // Other color modes are handled at creation time
         break;
     }
@@ -615,6 +619,10 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.follow:
       case MovementBehavior.directed:
       case MovementBehavior.random:
+      case MovementBehavior.orbit:
+      case MovementBehavior.wave:
+      case MovementBehavior.attract:
+      case MovementBehavior.repel:
         // Wrap around edges
         if (position.x < -size) position.x = width + size;
         if (position.x > width + size) position.x = -size;
