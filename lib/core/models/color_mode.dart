@@ -1,14 +1,23 @@
-/// Defines how colors are assigned in the art generation process
+/// Defines how colors should be applied to elements
 enum ColorMode {
-  /// Colors are assigned randomly from the palette
-  random,
+  /// Single color for all elements
+  single,
   
-  /// Colors are assigned based on position
+  /// Gradient based on position
+  gradient,
+  
+  /// Color based on position
   position,
   
-  /// Colors are assigned based on time/animation progress
-  time,
+  /// Color based on velocity
+  velocity,
   
-  /// Colors are assigned based on flow field values
-  flow
+  /// Color based on age
+  age,
+  
+  /// Random color from palette
+  random,
+  
+  /// Custom color assignment
+  custom,
 }
