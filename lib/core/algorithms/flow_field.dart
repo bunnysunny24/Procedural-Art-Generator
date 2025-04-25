@@ -1,20 +1,18 @@
 import 'dart:math';
-import 'dart:ui';
-
-import 'package:flutter/material.dart';
-import 'package:vector_math/vector_math_64.dart';
+import 'package:flutter/material.dart' hide Colors;
+import 'package:vector_math/vector_math_64.dart' hide Colors;
+import 'package:flutter/material.dart' as material;
 
 import '../models/parameter_set.dart';
 import '../models/particle.dart';
-import '../models/color_palette.dart';
 
 /// Implementation of a flow field algorithm for generative art
 class FlowFieldAlgorithm {
   /// List of active particles
   final List<Particle> particles = [];
   
-  /// The flow field grid (stores directions)
-  late List<List<Vector2>> flowField;
+  /// The flow field
+  late FlowField flowField;
   
   /// Random number generator
   final Random random = Random();
@@ -22,12 +20,7 @@ class FlowFieldAlgorithm {
   /// Current parameters
   ParameterSet params;
   
-  /// Resolution of the flow field grid (lower means smoother)
-  int resolution = 20;
-  
   /// Noise offset for field generation
-  double noiseOffsetX = 0.0;
-  double noiseOffsetY = 0.0;
   double noiseOffsetZ = 0.0;
   
   /// Field update interval (frames)
@@ -45,7 +38,7 @@ class FlowFieldAlgorithm {
     _initAlgorithmParams();
     
     // Create the flow field
-    _createFlowField();
+    flowField = FlowField(params);
     
     // Initialize particles
     _initializeParticles();
@@ -55,56 +48,8 @@ class FlowFieldAlgorithm {
   void _initAlgorithmParams() {
     // Get algorithm specific params or use defaults
     final specificParams = params.algorithmSpecificParams;
-    resolution = specificParams['resolution'] as int? ?? 20;
-    noiseOffsetX = specificParams['noiseOffsetX'] as double? ?? random.nextDouble() * 1000;
-    noiseOffsetY = specificParams['noiseOffsetY'] as double? ?? random.nextDouble() * 1000;
     noiseOffsetZ = specificParams['noiseOffsetZ'] as double? ?? random.nextDouble() * 1000;
     fieldUpdateInterval = specificParams['fieldUpdateInterval'] as int? ?? 30;
-  }
-  
-  /// Create the flow field grid
-  void _createFlowField() {
-    final width = params.canvasSize.width.toInt();
-    final height = params.canvasSize.height.toInt();
-    
-    // Calculate grid dimensions
-    final cols = (width / resolution).ceil();
-    final rows = (height / resolution).ceil();
-    
-    // Initialize flow field grid
-    flowField = List.generate(
-      cols,
-      (i) => List.generate(
-        rows,
-        (j) => _calculateFlowVector(i, j),
-      ),
-    );
-  }
-  
-  /// Calculate flow vector at grid position using noise
-  Vector2 _calculateFlowVector(int col, int row) {
-    // Convert grid position to pixel coordinates
-    final x = col * resolution;
-    final y = row * resolution;
-    
-    // Calculate noise value (simplex noise approximation)
-    final angle = _noise(
-      (x * 0.01) + noiseOffsetX,
-      (y * 0.01) + noiseOffsetY,
-      noiseOffsetZ
-    ) * pi * 4;
-    
-    // Convert angle to vector direction
-    return Vector2(cos(angle), sin(angle));
-  }
-  
-  /// Simple noise function (approximation of simplex noise)
-  double _noise(double x, double y, double z) {
-    // Simple noise function that uses sin/cos
-    // Note: In a production app, we'd use a proper noise implementation
-    return (sin(x) * cos(y) * sin(z) + 
-            cos(x * 1.3) * sin(y * 0.7) * cos(z * 1.5) + 
-            sin(x * 2.3) * sin(y * 1.9) * cos(z * 0.8)) / 3 + 0.5;
   }
   
   /// Initialize particles based on current parameters
@@ -177,7 +122,7 @@ class FlowFieldAlgorithm {
       default:
         // Other color modes
         if (colorPalette.colors.isEmpty) {
-          return Colors.white.withOpacity(colorPalette.opacity);
+          return material.Colors.white.withOpacity(colorPalette.opacity);
         }
         return colorPalette.colors.first.withOpacity(colorPalette.opacity);
     }
@@ -189,13 +134,14 @@ class FlowFieldAlgorithm {
     
     // Update flow field periodically
     if (frameCount % fieldUpdateInterval == 0) {
-      _updateFlowField();
+      flowField.updateField(noiseOffsetZ);
+      noiseOffsetZ += 0.01;
     }
     
     // Update each particle based on flow field
     for (int i = particles.length - 1; i >= 0; i--) {
       // Get flow direction for this particle
-      final flowForce = _getFlowForce(particles[i].position);
+      final flowForce = flowField.getFlowVector(particles[i].position);
       
       // Apply flow force
       particles[i].applyForce(flowForce);
@@ -216,46 +162,6 @@ class FlowFieldAlgorithm {
         particles[i] = _createParticle();
       }
     }
-  }
-  
-  /// Gradually update the flow field
-  void _updateFlowField() {
-    // Animate noise offsets to make the flow field change over time
-    noiseOffsetZ += 0.01;
-    
-    // Update random cells for efficiency rather than the entire grid
-    final cols = flowField.length;
-    final rows = flowField[0].length;
-    
-    // Update ~10% of cells per frame
-    final cellsToUpdate = (cols * rows * 0.1).round();
-    
-    for (int i = 0; i < cellsToUpdate; i++) {
-      final col = random.nextInt(cols);
-      final row = random.nextInt(rows);
-      flowField[col][row] = _calculateFlowVector(col, row);
-    }
-  }
-  
-  /// Get the flow force at a specific position
-  Vector2 _getFlowForce(Vector2 position) {
-    // Convert position to grid coordinates
-    final col = (position.x / resolution).floor();
-    final row = (position.y / resolution).floor();
-    
-    // Ensure coords are within bounds
-    final cols = flowField.length;
-    final rows = flowField[0].length;
-    
-    if (col < 0 || col >= cols || row < 0 || row >= rows) {
-      return Vector2(0, 0);
-    }
-    
-    // Get flow direction at this position
-    final flowVector = flowField[col][row];
-    
-    // Scale based on speed parameter
-    return flowVector.scaled(params.speed * 0.05);
   }
   
   /// Apply forces based on user interaction point
@@ -310,10 +216,6 @@ class FlowFieldAlgorithm {
         newParams.particleCount != params.particleCount ||
         newParams.particleShape != params.particleShape;
         
-    // Update resolution if it changed in algorithm specific params
-    final newResolution = newParams.algorithmSpecificParams['resolution'] as int? ?? resolution;
-    final bool fieldNeedsUpdate = newResolution != resolution;
-    
     // Store new parameters
     params = newParams;
     
@@ -321,8 +223,8 @@ class FlowFieldAlgorithm {
     _initAlgorithmParams();
     
     // Recreation of flow field if needed
-    if (fieldNeedsUpdate) {
-      _createFlowField();
+    if (flowField.needsReset(newParams)) {
+      flowField = FlowField(newParams);
     }
     
     // Re-initialize particles if needed
@@ -334,42 +236,122 @@ class FlowFieldAlgorithm {
   /// Set the interaction point
   void handleInteraction(Offset? point) {
     interactionPoint = point;
+    if (point != null) {
+      flowField.addDisturbance(point);
+    }
   }
   
   /// Render particles to the canvas
   void render(Canvas canvas) {
     // First render flow field if debug mode is on
-    if (params.algorithmSpecificParams['showFlowField'] == true) {
-      _renderFlowField(canvas);
-    }
+    flowField.render(canvas);
     
     // Render all particles
     for (var particle in particles) {
       particle.render(canvas, params);
     }
   }
+}
+
+/// Flow field class
+class FlowField {
+  final ParameterSet params;
+  final List<List<Vector2>> _field;
+  final int _resolution;
   
-  /// Render the flow field (for debugging/visualization)
-  void _renderFlowField(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+  FlowField(this.params)
+    : _resolution = params.algorithmSpecificParams['resolution'] as int? ?? 20,
+      _field = List.generate(
+        (params.canvasSize.height / (params.algorithmSpecificParams['resolution'] as int? ?? 20)).ceil(),
+        (_) => List.generate(
+          (params.canvasSize.width / (params.algorithmSpecificParams['resolution'] as int? ?? 20)).ceil(),
+          (_) => Vector2.zero(),
+        ),
+      );
+
+  Vector2 getFlowVector(Vector2 position) {
+    final x = (position.x / params.canvasSize.width * _field[0].length).floor();
+    final y = (position.y / params.canvasSize.height * _field.length).floor();
     
-    for (int i = 0; i < flowField.length; i++) {
-      for (int j = 0; j < flowField[i].length; j++) {
-        final x = i * resolution.toDouble();
-        final y = j * resolution.toDouble();
+    if (x < 0 || x >= _field[0].length || y < 0 || y >= _field.length) {
+      return Vector2.zero();
+    }
+    
+    final flowVector = _field[y][x];
+    return flowVector.scaled(params.speed * 0.05);
+  }
+
+  void updateField(double noiseZ) {
+    for (int y = 0; y < _field.length; y++) {
+      for (int x = 0; x < _field[y].length; x++) {
+        final angle = _generateNoiseAngle(x, y, noiseZ);
+        _field[y][x].setValues(cos(angle), sin(angle));
+      }
+    }
+  }
+
+  double _generateNoiseAngle(int x, int y, double z) {
+    final frequency = params.algorithmSpecificParams['noiseFrequency'] as double? ?? 0.01;
+    final xCoord = x * frequency;
+    final yCoord = y * frequency;
+    
+    // Simplified noise implementation - replace with proper noise function in production
+    final noise = sin(xCoord + z) * cos(yCoord + z);
+    return noise * 2 * pi;
+  }
+
+  void addDisturbance(Offset center) {
+    final centerVec = Vector2(center.dx, center.dy);
+    final radius = params.interactionRadius;
+    final strength = params.interactionStrength;
+
+    for (int y = 0; y < _field.length; y++) {
+      for (int x = 0; x < _field[y].length; x++) {
+        final worldX = x * _resolution.toDouble();
+        final worldY = y * _resolution.toDouble();
+        final pos = Vector2(worldX, worldY);
         
-        // Get flow direction
-        final direction = flowField[i][j];
+        final toPoint = centerVec - pos;
+        final distance = toPoint.length;
         
-        // Draw a small line showing the direction
-        canvas.drawLine(
-          Offset(x, y),
-          Offset(x + direction.x * 10, y + direction.y * 10),
-          paint,
-        );
+        if (distance < radius && distance > 0) {
+          toPoint.normalize();
+          final influence = 1.0 - (distance / radius);
+          _field[y][x] = toPoint.scaled(influence * strength);
+        }
+      }
+    }
+  }
+
+  bool needsReset(ParameterSet newParams) {
+    return newParams.algorithmType != params.algorithmType ||
+           params.algorithmSpecificParams['resolution'] !=
+           newParams.algorithmSpecificParams['resolution'];
+  }
+
+  void update(double dt) {
+    // Placeholder implementation for update logic.
+  }
+
+  void render(Canvas canvas) {
+    if (params.algorithmSpecificParams['showFlowField'] == true) {
+      final paint = Paint()
+        ..strokeWidth = 1
+        ..color = material.Colors.white.withOpacity(0.2)
+        ..style = PaintingStyle.stroke;
+
+      for (int y = 0; y < _field.length; y++) {
+        for (int x = 0; x < _field[y].length; x++) {
+          final worldX = x * _resolution.toDouble();
+          final worldY = y * _resolution.toDouble();
+          final flow = _field[y][x].normalized() * (_resolution * 0.5);
+          
+          canvas.drawLine(
+            Offset(worldX, worldY),
+            Offset(worldX + flow.x, worldY + flow.y),
+            paint,
+          );
+        }
       }
     }
   }

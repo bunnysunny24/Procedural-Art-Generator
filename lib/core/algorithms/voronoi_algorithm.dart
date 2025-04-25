@@ -1,5 +1,6 @@
 import 'dart:math';
-import 'package:flutter/material.dart' hide Colors;
+import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:vector_math/vector_math_64.dart';
 import '../models/parameter_set.dart';
 import 'generative_algorithm.dart';
@@ -110,7 +111,6 @@ class VoronoiAlgorithm extends GenerativeAlgorithm {
 
     final cellSize = parameters.algorithmSpecificParams['cellSize'] as double? ?? 8.0;
     final mode = parameters.algorithmSpecificParams['mode'] as String? ?? 'default';
-    final useGradients = parameters.algorithmSpecificParams['useGradients'] == true;
     
     // Draw Voronoi cells
     for (int y = 0; y < height; y += cellSize.toInt()) {
@@ -158,7 +158,7 @@ class VoronoiAlgorithm extends GenerativeAlgorithm {
             canvas.drawRect(
               Rect.fromLTWH(x.toDouble(), y.toDouble(), cellSize, cellSize),
               Paint()
-                ..color = Colors.white.withOpacity(0.3)
+                ..color = material.Colors.white.withOpacity(0.3)
                 ..style = PaintingStyle.stroke
                 ..strokeWidth = 1,
             );
@@ -184,7 +184,7 @@ class VoronoiAlgorithm extends GenerativeAlgorithm {
         _interactionPoint!,
         parameters.interactionRadius,
         Paint()
-          ..color = Colors.white.withOpacity(0.2)
+          ..color = material.Colors.white.withOpacity(0.2)
           ..style = PaintingStyle.stroke,
       );
     }

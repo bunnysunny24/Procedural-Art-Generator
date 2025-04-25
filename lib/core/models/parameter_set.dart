@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import '../algorithms/generative_algorithm.dart';
 
 enum ColorMode {
   single,
@@ -50,6 +51,8 @@ class ParameterSet {
   final Map<String, dynamic> algorithmSpecificParams;
   final bool animate;
   final bool interactionEnabled;
+  final double speed;
+  final AlgorithmType algorithmType;
 
   const ParameterSet({
     required this.canvasSize,
@@ -71,6 +74,8 @@ class ParameterSet {
     this.algorithmSpecificParams = const {},
     this.animate = true,
     this.interactionEnabled = true,
+    this.speed = 1.0,
+    this.algorithmType = AlgorithmType.particleSystem,
   });
 
   ParameterSet copyWith({
@@ -93,6 +98,8 @@ class ParameterSet {
     Map<String, dynamic>? algorithmSpecificParams,
     bool? animate,
     bool? interactionEnabled,
+    double? speed,
+    AlgorithmType? algorithmType,
   }) {
     return ParameterSet(
       canvasSize: canvasSize ?? this.canvasSize,
@@ -114,6 +121,8 @@ class ParameterSet {
       algorithmSpecificParams: algorithmSpecificParams ?? this.algorithmSpecificParams,
       animate: animate ?? this.animate,
       interactionEnabled: interactionEnabled ?? this.interactionEnabled,
+      speed: speed ?? this.speed,
+      algorithmType: algorithmType ?? this.algorithmType,
     );
   }
 }

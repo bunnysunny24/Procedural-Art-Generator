@@ -1,6 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart' hide Colors;
-import 'package:vector_math/vector_math_64.dart';
+import 'package:flutter/material.dart';
 import '../models/parameter_set.dart';
 import 'generative_algorithm.dart';
 import 'flow_field.dart';
@@ -9,13 +8,14 @@ class FlowFieldAlgorithm extends GenerativeAlgorithm {
   late FlowField _flowField;
   final Random _random = Random();
   double _noiseZ = 0;
+  ParameterSet _currentParams;
 
-  FlowFieldAlgorithm(ParameterSet parameters) : super(parameters) {
+  FlowFieldAlgorithm(ParameterSet parameters) : _currentParams = parameters, super(parameters) {
     _initialize();
   }
 
   void _initialize() {
-    _flowField = FlowField(parameters);
+    _flowField = FlowField(_currentParams);
     _noiseZ = _random.nextDouble() * 1000;
   }
 
@@ -23,8 +23,8 @@ class FlowFieldAlgorithm extends GenerativeAlgorithm {
   void update(Duration delta) {
     final dt = delta.inMilliseconds / 1000.0;
     
-    if (parameters.algorithmSpecificParams['animateField'] == true) {
-      _noiseZ += parameters.algorithmSpecificParams['fieldAnimationSpeed'] as double? ?? 0.1;
+    if (_currentParams.algorithmSpecificParams['animateField'] == true) {
+      _noiseZ += _currentParams.algorithmSpecificParams['fieldAnimationSpeed'] as double? ?? 0.1;
       _flowField.updateField(_noiseZ);
     }
 
@@ -34,8 +34,8 @@ class FlowFieldAlgorithm extends GenerativeAlgorithm {
   @override
   void render(Canvas canvas) {
     canvas.drawRect(
-      Offset.zero & parameters.canvasSize,
-      Paint()..color = parameters.backgroundColor,
+      Offset.zero & _currentParams.canvasSize,
+      Paint()..color = _currentParams.backgroundColor,
     );
 
     _flowField.render(canvas);
@@ -57,7 +57,7 @@ class FlowFieldAlgorithm extends GenerativeAlgorithm {
     final needsReset = _flowField.needsReset(newParameters);
     
     if (needsReset) {
-      parameters = newParameters;
+      _currentParams = newParameters;
       _initialize();
     }
   }

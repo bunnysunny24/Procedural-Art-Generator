@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart' hide Colors;
+import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import '../models/parameter_set.dart';
 import 'generative_algorithm.dart';
 
@@ -159,7 +160,7 @@ class FractalAlgorithm extends GenerativeAlgorithm {
   }
 
   Color _getColor(int iterations) {
-    if (iterations >= 100) return Colors.black;
+    if (iterations >= 100) return material.Colors.black;
     
     final progress = iterations / 100.0;
     return parameters.colorPalette.getColorAtProgress(progress);

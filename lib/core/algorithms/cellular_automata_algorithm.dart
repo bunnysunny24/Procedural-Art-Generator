@@ -1,5 +1,6 @@
 import 'dart:math';
-import 'package:flutter/material.dart' hide Colors;
+import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import '../models/parameter_set.dart';
 import 'generative_algorithm.dart';
 
@@ -220,22 +221,22 @@ class CellularAutomataAlgorithm extends GenerativeAlgorithm {
           case 1: return const Color(0xFFFFFF00);  // Electron head (yellow)
           case 2: return const Color(0xFF0000FF);  // Electron tail (blue)
           case 3: return const Color(0xFFFF0000);  // Conductor (red)
-          default: return Colors.black;
+          default: return material.Colors.black;
         }
       case AutomataType.briansBrain:
         switch (state) {
           case 2: return const Color(0xFFFFFFFF);  // Alive (white)
           case 1: return const Color(0xFF666666);  // Dying (gray)
-          default: return Colors.black;
+          default: return material.Colors.black;
         }
       default:
-        return state > 0 ? parameters.colorPalette.getColorAtProgress(state / 3) : Colors.black;
+        return state > 0 ? parameters.colorPalette.getColorAtProgress(state / 3) : material.Colors.black;
     }
   }
 
   void _drawGrid(Canvas canvas) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.2)
+      ..color = material.Colors.white.withOpacity(0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
