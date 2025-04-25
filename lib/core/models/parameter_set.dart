@@ -1,289 +1,244 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+
 import 'color_palette.dart';
 
-/// Defines the algorithm type for art generation
-enum AlgorithmType {
-  particleSystem,
-  flowField,
-  fractal,
-  cellularAutomata,
-  voronoi,
-  waveFunctionCollapse
-}
-
-/// Defines the particle shape for particle-based algorithms
-enum ParticleShape {
-  circle,
-  square,
-  triangle,
-  line,
-  custom
-}
-
-/// Defines movement behaviors for particles
-enum MovementBehavior {
-  random,
-  directed,
-  follow,
-  orbit,
-  attract,
-  repel,
-  bounce,
-  wave
-}
-
-/// Contains all parameters for generating procedural art
+/// Represents a complete set of parameters for controlling art generation
 class ParameterSet extends Equatable {
-  // Algorithm parameters
-  final AlgorithmType algorithmType;
-  final Map<String, dynamic> algorithmSpecificParams;
+  /// Name of this parameter set
+  final String name;
   
-  // Canvas parameters
-  final Size canvasSize;
-  final Color backgroundColor;
+  /// The selected algorithm type
+  final String algorithmType;
   
-  // Particle parameters (for particle-based algorithms)
-  final ParticleShape particleShape;
-  final int particleCount;
-  final double minParticleSize;
-  final double maxParticleSize;
-  final double particleOpacity;
-  final bool particleBlending;
-  
-  // Movement parameters
-  final MovementBehavior movementBehavior;
-  final double speed;
-  final double turbulence;
-  final double friction;
-  
-  // Physics parameters
-  final double gravity;
-  final double wind;
-  final bool enableCollisions;
-  final double bounceFactor;
-  
-  // Color parameters
+  /// The color palette for the art
   final ColorPalette colorPalette;
   
-  // Interactive parameters
-  final bool interactionEnabled;
-  final double interactionStrength;
-  final double interactionRadius;
+  /// Resolution or detail level (higher = more detail)
+  final double resolution;
   
-  // Animation parameters
-  final int animationFrameCount;
-  final bool loopAnimation;
-  final double frameRate;
-
+  /// Speed of animation
+  final double speed;
+  
+  /// Random seed for reproducible generation
+  final int seed;
+  
+  /// Whether to use randomness in the generation
+  final bool useRandomness;
+  
+  /// Noise scale for algorithms using noise functions
+  final double noiseScale;
+  
+  /// Flow field strength (for flow field algorithms)
+  final double flowStrength;
+  
+  /// Number of particles or elements
+  final int elementCount;
+  
+  /// Element size range (min and max)
+  final RangeValues elementSizeRange;
+  
+  /// Element lifetime in seconds (if applicable)
+  final double elementLifetime;
+  
+  /// Additional algorithm-specific parameters
+  final Map<String, dynamic> additionalParams;
+  
+  /// Timestamp for when this parameter set was created
+  final DateTime createdAt;
+  
+  /// Timestamp for when this parameter set was last modified
+  final DateTime modifiedAt;
+  
   const ParameterSet({
+    required this.name,
     required this.algorithmType,
-    this.algorithmSpecificParams = const {},
-    required this.canvasSize,
-    required this.backgroundColor,
-    required this.particleShape,
-    required this.particleCount,
-    required this.minParticleSize,
-    required this.maxParticleSize,
-    required this.particleOpacity,
-    required this.particleBlending,
-    required this.movementBehavior,
-    required this.speed,
-    required this.turbulence,
-    required this.friction,
-    required this.gravity,
-    required this.wind,
-    required this.enableCollisions,
-    required this.bounceFactor,
     required this.colorPalette,
-    required this.interactionEnabled,
-    required this.interactionStrength,
-    required this.interactionRadius,
-    required this.animationFrameCount,
-    required this.loopAnimation,
-    required this.frameRate,
+    required this.resolution,
+    required this.speed,
+    required this.seed,
+    required this.useRandomness,
+    required this.noiseScale,
+    required this.flowStrength,
+    required this.elementCount,
+    required this.elementSizeRange,
+    required this.elementLifetime,
+    required this.additionalParams,
+    required this.createdAt,
+    required this.modifiedAt,
   });
-
-  /// Creates a default parameter set for initial state
-  factory ParameterSet.defaultSettings() {
+  
+  /// Default parameter set with common values
+  factory ParameterSet.defaultSet() {
     return ParameterSet(
-      algorithmType: AlgorithmType.particleSystem,
-      canvasSize: const Size(800, 600),
-      backgroundColor: Colors.black,
-      particleShape: ParticleShape.circle,
-      particleCount: 500,
-      minParticleSize: 2.0,
-      maxParticleSize: 10.0,
-      particleOpacity: 0.8,
-      particleBlending: true,
-      movementBehavior: MovementBehavior.random,
-      speed: 1.0,
-      turbulence: 0.5,
-      friction: 0.02,
-      gravity: 0.0,
-      wind: 0.0,
-      enableCollisions: false,
-      bounceFactor: 0.8,
+      name: 'Default',
+      algorithmType: 'particle',
       colorPalette: ColorPalette.defaultPalette(),
-      interactionEnabled: true,
-      interactionStrength: 1.0,
-      interactionRadius: 100.0,
-      animationFrameCount: 300,
-      loopAnimation: true,
-      frameRate: 60.0,
+      resolution: 1.0,
+      speed: 1.0,
+      seed: 42,
+      useRandomness: true,
+      noiseScale: 0.01,
+      flowStrength: 0.5,
+      elementCount: 1000,
+      elementSizeRange: const RangeValues(2.0, 6.0),
+      elementLifetime: 5.0,
+      additionalParams: {},
+      createdAt: DateTime.now(),
+      modifiedAt: DateTime.now(),
     );
   }
-
-  /// Creates a copy with updated fields
+  
+  /// Create a random parameter set
+  factory ParameterSet.random() {
+    final random = Random();
+    final algorithms = ['particle', 'flowfield', 'cellular', 'diffusion', 'voronoi'];
+    
+    return ParameterSet(
+      name: 'Random ${DateTime.now().millisecondsSinceEpoch}',
+      algorithmType: algorithms[random.nextInt(algorithms.length)],
+      colorPalette: ColorPalette.random(),
+      resolution: 0.5 + random.nextDouble() * 1.5, // 0.5 to 2.0
+      speed: 0.2 + random.nextDouble() * 1.8, // 0.2 to 2.0
+      seed: random.nextInt(10000),
+      useRandomness: random.nextBool(),
+      noiseScale: 0.001 + random.nextDouble() * 0.049, // 0.001 to 0.05
+      flowStrength: 0.1 + random.nextDouble() * 0.9, // 0.1 to 1.0
+      elementCount: 100 + random.nextInt(5000), // 100 to 5100
+      elementSizeRange: RangeValues(
+        1.0 + random.nextDouble() * 4.0, // min: 1.0 to 5.0
+        5.0 + random.nextDouble() * 25.0, // max: 5.0 to 30.0
+      ),
+      elementLifetime: 1.0 + random.nextDouble() * 9.0, // 1.0 to 10.0
+      additionalParams: {
+        'turbulence': random.nextDouble(),
+        'complexity': 0.2 + random.nextDouble() * 0.8,
+        'symmetry': random.nextDouble(),
+        'fadeType': random.nextInt(4),
+      },
+      createdAt: DateTime.now(),
+      modifiedAt: DateTime.now(),
+    );
+  }
+  
+  /// Create a copy with modified properties
   ParameterSet copyWith({
-    AlgorithmType? algorithmType,
-    Map<String, dynamic>? algorithmSpecificParams,
-    Size? canvasSize,
-    Color? backgroundColor,
-    ParticleShape? particleShape,
-    int? particleCount,
-    double? minParticleSize,
-    double? maxParticleSize,
-    double? particleOpacity,
-    bool? particleBlending,
-    MovementBehavior? movementBehavior,
-    double? speed,
-    double? turbulence,
-    double? friction,
-    double? gravity,
-    double? wind,
-    bool? enableCollisions,
-    double? bounceFactor,
+    String? name,
+    String? algorithmType,
     ColorPalette? colorPalette,
-    bool? interactionEnabled,
-    double? interactionStrength,
-    double? interactionRadius,
-    int? animationFrameCount,
-    bool? loopAnimation,
-    double? frameRate,
+    double? resolution,
+    double? speed,
+    int? seed,
+    bool? useRandomness,
+    double? noiseScale,
+    double? flowStrength,
+    int? elementCount,
+    RangeValues? elementSizeRange,
+    double? elementLifetime,
+    Map<String, dynamic>? additionalParams,
+    DateTime? modifiedAt,
   }) {
     return ParameterSet(
+      name: name ?? this.name,
       algorithmType: algorithmType ?? this.algorithmType,
-      algorithmSpecificParams: algorithmSpecificParams ?? this.algorithmSpecificParams,
-      canvasSize: canvasSize ?? this.canvasSize,
-      backgroundColor: backgroundColor ?? this.backgroundColor,
-      particleShape: particleShape ?? this.particleShape,
-      particleCount: particleCount ?? this.particleCount,
-      minParticleSize: minParticleSize ?? this.minParticleSize,
-      maxParticleSize: maxParticleSize ?? this.maxParticleSize,
-      particleOpacity: particleOpacity ?? this.particleOpacity,
-      particleBlending: particleBlending ?? this.particleBlending,
-      movementBehavior: movementBehavior ?? this.movementBehavior,
-      speed: speed ?? this.speed,
-      turbulence: turbulence ?? this.turbulence,
-      friction: friction ?? this.friction,
-      gravity: gravity ?? this.gravity,
-      wind: wind ?? this.wind,
-      enableCollisions: enableCollisions ?? this.enableCollisions,
-      bounceFactor: bounceFactor ?? this.bounceFactor,
       colorPalette: colorPalette ?? this.colorPalette,
-      interactionEnabled: interactionEnabled ?? this.interactionEnabled,
-      interactionStrength: interactionStrength ?? this.interactionStrength,
-      interactionRadius: interactionRadius ?? this.interactionRadius,
-      animationFrameCount: animationFrameCount ?? this.animationFrameCount,
-      loopAnimation: loopAnimation ?? this.loopAnimation,
-      frameRate: frameRate ?? this.frameRate,
+      resolution: resolution ?? this.resolution,
+      speed: speed ?? this.speed,
+      seed: seed ?? this.seed,
+      useRandomness: useRandomness ?? this.useRandomness,
+      noiseScale: noiseScale ?? this.noiseScale,
+      flowStrength: flowStrength ?? this.flowStrength,
+      elementCount: elementCount ?? this.elementCount,
+      elementSizeRange: elementSizeRange ?? this.elementSizeRange,
+      elementLifetime: elementLifetime ?? this.elementLifetime,
+      additionalParams: additionalParams ?? Map<String, dynamic>.from(this.additionalParams),
+      createdAt: this.createdAt,
+      modifiedAt: modifiedAt ?? DateTime.now(),
     );
   }
-
-  /// Serializes to JSON
+  
+  /// Convert to JSON map
   Map<String, dynamic> toJson() {
     return {
-      'algorithmType': algorithmType.index,
-      'algorithmSpecificParams': algorithmSpecificParams,
-      'canvasWidth': canvasSize.width,
-      'canvasHeight': canvasSize.height,
-      'backgroundColor': backgroundColor.value,
-      'particleShape': particleShape.index,
-      'particleCount': particleCount,
-      'minParticleSize': minParticleSize,
-      'maxParticleSize': maxParticleSize,
-      'particleOpacity': particleOpacity,
-      'particleBlending': particleBlending,
-      'movementBehavior': movementBehavior.index,
-      'speed': speed,
-      'turbulence': turbulence,
-      'friction': friction,
-      'gravity': gravity,
-      'wind': wind,
-      'enableCollisions': enableCollisions,
-      'bounceFactor': bounceFactor,
+      'name': name,
+      'algorithmType': algorithmType,
       'colorPalette': colorPalette.toJson(),
-      'interactionEnabled': interactionEnabled,
-      'interactionStrength': interactionStrength,
-      'interactionRadius': interactionRadius,
-      'animationFrameCount': animationFrameCount,
-      'loopAnimation': loopAnimation,
-      'frameRate': frameRate,
+      'resolution': resolution,
+      'speed': speed,
+      'seed': seed,
+      'useRandomness': useRandomness,
+      'noiseScale': noiseScale,
+      'flowStrength': flowStrength,
+      'elementCount': elementCount,
+      'elementSizeMin': elementSizeRange.start,
+      'elementSizeMax': elementSizeRange.end,
+      'elementLifetime': elementLifetime,
+      'additionalParams': additionalParams,
+      'createdAt': createdAt.toIso8601String(),
+      'modifiedAt': modifiedAt.toIso8601String(),
     };
   }
-
-  /// Creates from JSON
+  
+  /// Create from JSON map
   factory ParameterSet.fromJson(Map<String, dynamic> json) {
     return ParameterSet(
-      algorithmType: AlgorithmType.values[json['algorithmType']],
-      algorithmSpecificParams: 
-          json['algorithmSpecificParams'] as Map<String, dynamic>? ?? {},
-      canvasSize: Size(
-        json['canvasWidth'].toDouble(), 
-        json['canvasHeight'].toDouble()
+      name: json['name'] as String? ?? 'Imported',
+      algorithmType: json['algorithmType'] as String? ?? 'particle',
+      colorPalette: json['colorPalette'] != null 
+          ? ColorPalette.fromJson(json['colorPalette'] as Map<String, dynamic>)
+          : ColorPalette.defaultPalette(),
+      resolution: (json['resolution'] as num?)?.toDouble() ?? 1.0,
+      speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
+      seed: json['seed'] as int? ?? 42,
+      useRandomness: json['useRandomness'] as bool? ?? true,
+      noiseScale: (json['noiseScale'] as num?)?.toDouble() ?? 0.01,
+      flowStrength: (json['flowStrength'] as num?)?.toDouble() ?? 0.5,
+      elementCount: json['elementCount'] as int? ?? 1000,
+      elementSizeRange: RangeValues(
+        (json['elementSizeMin'] as num?)?.toDouble() ?? 2.0,
+        (json['elementSizeMax'] as num?)?.toDouble() ?? 6.0,
       ),
-      backgroundColor: Color(json['backgroundColor']),
-      particleShape: ParticleShape.values[json['particleShape']],
-      particleCount: json['particleCount'],
-      minParticleSize: json['minParticleSize'].toDouble(),
-      maxParticleSize: json['maxParticleSize'].toDouble(),
-      particleOpacity: json['particleOpacity'].toDouble(),
-      particleBlending: json['particleBlending'],
-      movementBehavior: MovementBehavior.values[json['movementBehavior']],
-      speed: json['speed'].toDouble(),
-      turbulence: json['turbulence'].toDouble(),
-      friction: json['friction'].toDouble(),
-      gravity: json['gravity'].toDouble(),
-      wind: json['wind'].toDouble(),
-      enableCollisions: json['enableCollisions'],
-      bounceFactor: json['bounceFactor'].toDouble(),
-      colorPalette: ColorPalette.fromJson(json['colorPalette']),
-      interactionEnabled: json['interactionEnabled'],
-      interactionStrength: json['interactionStrength'].toDouble(),
-      interactionRadius: json['interactionRadius'].toDouble(),
-      animationFrameCount: json['animationFrameCount'],
-      loopAnimation: json['loopAnimation'],
-      frameRate: json['frameRate'].toDouble(),
+      elementLifetime: (json['elementLifetime'] as num?)?.toDouble() ?? 5.0,
+      additionalParams: (json['additionalParams'] as Map<String, dynamic>?) ?? {},
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt'] as String) 
+          : DateTime.now(),
+      modifiedAt: json['modifiedAt'] != null 
+          ? DateTime.parse(json['modifiedAt'] as String) 
+          : DateTime.now(),
     );
   }
-
+  
+  /// Export as JSON string
+  String exportToJson() {
+    return jsonEncode(toJson());
+  }
+  
+  /// Create from JSON string
+  factory ParameterSet.importFromJson(String jsonString) {
+    final Map<String, dynamic> json = jsonDecode(jsonString) as Map<String, dynamic>;
+    return ParameterSet.fromJson(json);
+  }
+  
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
+    name,
     algorithmType,
-    algorithmSpecificParams,
-    canvasSize,
-    backgroundColor,
-    particleShape,
-    particleCount,
-    minParticleSize,
-    maxParticleSize,
-    particleOpacity,
-    particleBlending,
-    movementBehavior,
-    speed,
-    turbulence,
-    friction,
-    gravity,
-    wind,
-    enableCollisions,
-    bounceFactor,
     colorPalette,
-    interactionEnabled,
-    interactionStrength,
-    interactionRadius,
-    animationFrameCount,
-    loopAnimation,
-    frameRate,
+    resolution,
+    speed,
+    seed,
+    useRandomness,
+    noiseScale,
+    flowStrength,
+    elementCount,
+    elementSizeRange,
+    elementLifetime,
+    additionalParams,
+    createdAt,
+    modifiedAt,
   ];
 }

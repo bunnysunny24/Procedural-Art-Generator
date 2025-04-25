@@ -1,100 +1,109 @@
-import 'package:equatable/equatable.dart';
-import 'package:flutter/material.dart';
+import 'dart:math';
 
-/// Defines different modes for applying colors to particles/elements
+import 'package:flutter/material.dart';
+import 'package:equatable/equatable.dart';
+
+/// Color distribution mode
 enum ColorMode {
-  single,        // Single color
-  gradient,      // Gradient between colors
-  random,        // Random color from palette
-  position,      // Color based on position
-  velocity,      // Color based on velocity
-  age,           // Color changing with particle age
-  custom         // Custom coloring logic
+  single,
+  random,
+  position,
+  velocity,
+  gradient,
+  age
 }
 
-/// Represents a color palette for art generation
+/// Color palette for art generation
 class ColorPalette extends Equatable {
-  /// Primary colors in the palette
+  /// List of colors in the palette
   final List<Color> colors;
   
-  /// Optional gradient stops for gradient mode
-  final List<double>? gradientStops;
-  
-  /// Color mode for applying colors to particles/elements
+  /// Color mode determines how colors are applied
   final ColorMode colorMode;
   
-  /// Color opacity/alpha
+  /// Color opacity
   final double opacity;
   
-  /// Whether to use color blending between particles
+  /// Whether to blend between colors
   final bool blendColors;
   
-  /// Additional settings for custom color behavior
-  final Map<String, dynamic> customSettings;
-
+  /// Random number generator
+  static final _random = Random();
+  
   const ColorPalette({
     required this.colors,
-    this.gradientStops,
     required this.colorMode,
     required this.opacity,
     required this.blendColors,
-    this.customSettings = const {},
   });
   
-  /// Creates a default color palette
+  /// Default color palette with basic colors
   factory ColorPalette.defaultPalette() {
     return ColorPalette(
       colors: [
         Colors.blue,
-        Colors.purple,
-        Colors.red,
-        Colors.orange,
-        Colors.yellow,
+        Colors.lightBlue,
+        Colors.cyan,
+        Colors.teal,
       ],
-      colorMode: ColorMode.gradient,
+      colorMode: ColorMode.position,
       opacity: 0.8,
       blendColors: true,
     );
   }
   
-  /// Creates predefined color schemes
+  /// Create a palette based on a preset name
   factory ColorPalette.preset(String presetName) {
     switch (presetName.toLowerCase()) {
       case 'fire':
         return ColorPalette(
           colors: [
-            const Color(0xFFFFD700),  // Gold
-            const Color(0xFFFFA500),  // Orange
-            const Color(0xFFFF4500),  // OrangeRed
-            const Color(0xFFDC143C),  // Crimson
+            Colors.red,
+            Colors.orange,
+            Colors.amber,
+            Colors.yellow,
           ],
-          colorMode: ColorMode.gradient,
+          colorMode: ColorMode.velocity,
           opacity: 0.8,
           blendColors: true,
+        );
+        
+      case 'neon':
+        return ColorPalette(
+          colors: [
+            const Color(0xFF00FFFF), // cyan
+            const Color(0xFFFF00FF), // magenta
+            const Color(0xFF00FF00), // bright green
+            const Color(0xFFFF0099), // pink
+            const Color(0xFFFFFF00), // yellow
+          ],
+          colorMode: ColorMode.random,
+          opacity: 0.8,
+          blendColors: false,
         );
         
       case 'ocean':
         return ColorPalette(
           colors: [
-            const Color(0xFF00FFFF),  // Cyan
-            const Color(0xFF1E90FF),  // DodgerBlue
-            const Color(0xFF4169E1),  // RoyalBlue
-            const Color(0xFF000080),  // Navy
-            const Color(0xFF191970),  // MidnightBlue
+            const Color(0xFF0077BE), // deep blue
+            const Color(0xFF5F9EA0), // cadet blue
+            const Color(0xFF00FFFF), // cyan
+            const Color(0xFF48D1CC), // medium turquoise
+            const Color(0xFF40E0D0), // turquoise
           ],
-          colorMode: ColorMode.gradient,
-          opacity: 0.8,
+          colorMode: ColorMode.position,
+          opacity: 0.7,
           blendColors: true,
         );
         
       case 'forest':
         return ColorPalette(
           colors: [
-            const Color(0xFF90EE90),  // LightGreen
-            const Color(0xFF32CD32),  // LimeGreen
-            const Color(0xFF228B22),  // ForestGreen
-            const Color(0xFF006400),  // DarkGreen
-            const Color(0xFF556B2F),  // DarkOliveGreen
+            const Color(0xFF228B22), // forest green
+            const Color(0xFF008000), // green
+            const Color(0xFF90EE90), // light green
+            const Color(0xFF32CD32), // lime green
+            const Color(0xFF556B2F), // dark olive green
           ],
           colorMode: ColorMode.gradient,
           opacity: 0.8,
@@ -104,41 +113,58 @@ class ColorPalette extends Equatable {
       case 'sunset':
         return ColorPalette(
           colors: [
-            const Color(0xFFFFD700),  // Gold
-            const Color(0xFFFF8C00),  // DarkOrange
-            const Color(0xFFFF4500),  // OrangeRed
-            const Color(0xFF8B0000),  // DarkRed
-            const Color(0xFF191970),  // MidnightBlue
+            const Color(0xFFFF4500), // orange red
+            const Color(0xFFFF8C00), // dark orange
+            const Color(0xFFFFD700), // gold
+            const Color(0xFFFF6347), // tomato
+            const Color(0xFF800080), // purple
           ],
-          colorMode: ColorMode.gradient,
+          colorMode: ColorMode.position,
           opacity: 0.8,
           blendColors: true,
         );
         
-      case 'neon':
-        return ColorPalette(
-          colors: [
-            const Color(0xFF00FFFF),  // Cyan
-            const Color(0xFFFF00FF),  // Magenta
-            const Color(0xFFFF0000),  // Red
-            const Color(0xFF00FF00),  // Lime
-            const Color(0xFFFFFF00),  // Yellow
-          ],
-          colorMode: ColorMode.random,
-          opacity: 1.0,
-          blendColors: true,
-        );
-        
-      case 'monochrome':
+      case 'grayscale':
         return ColorPalette(
           colors: [
             Colors.white,
             Colors.grey.shade300,
             Colors.grey.shade600,
-            Colors.grey.shade900,
             Colors.black,
           ],
-          colorMode: ColorMode.gradient,
+          colorMode: ColorMode.age,
+          opacity: 0.7,
+          blendColors: true,
+        );
+        
+      case 'rainbow':
+        return ColorPalette(
+          colors: [
+            Colors.red,
+            Colors.orange,
+            Colors.yellow,
+            Colors.green,
+            Colors.blue,
+            Colors.indigo,
+            Colors.purple,
+          ],
+          colorMode: ColorMode.position,
+          opacity: 0.8,
+          blendColors: true,
+        );
+        
+      case 'monochrome':
+        // Single color with varying brightness
+        final baseColor = Colors.blue;
+        return ColorPalette(
+          colors: [
+            baseColor.shade900,
+            baseColor.shade700,
+            baseColor.shade500,
+            baseColor.shade300,
+            baseColor.shade100,
+          ],
+          colorMode: ColorMode.position,
           opacity: 0.8,
           blendColors: true,
         );
@@ -148,121 +174,117 @@ class ColorPalette extends Equatable {
     }
   }
   
-  /// Returns a copy with modified properties
-  ColorPalette copyWith({
-    List<Color>? colors,
-    List<double>? gradientStops,
-    ColorMode? colorMode,
-    double? opacity,
-    bool? blendColors,
-    Map<String, dynamic>? customSettings,
-  }) {
+  /// Create a random color palette
+  factory ColorPalette.random() {
+    final colorSchemes = [
+      Colors.red,
+      Colors.pink,
+      Colors.purple,
+      Colors.deepPurple,
+      Colors.indigo,
+      Colors.blue,
+      Colors.lightBlue,
+      Colors.cyan,
+      Colors.teal,
+      Colors.green,
+      Colors.lightGreen,
+      Colors.lime,
+      Colors.yellow,
+      Colors.amber,
+      Colors.orange,
+      Colors.deepOrange,
+    ];
+    
+    // Choose a base color
+    final baseColor = colorSchemes[_random.nextInt(colorSchemes.length)];
+    
+    // Create a palette based on the base color
     return ColorPalette(
-      colors: colors ?? this.colors,
-      gradientStops: gradientStops ?? this.gradientStops,
-      colorMode: colorMode ?? this.colorMode,
-      opacity: opacity ?? this.opacity,
-      blendColors: blendColors ?? this.blendColors,
-      customSettings: customSettings ?? this.customSettings,
+      colors: [
+        baseColor.shade900,
+        baseColor.shade700,
+        baseColor.shade500,
+        baseColor.shade300,
+        baseColor.shade100,
+      ],
+      colorMode: ColorMode.values[_random.nextInt(ColorMode.values.length)],
+      opacity: 0.6 + _random.nextDouble() * 0.4, // Between 0.6 and 1.0
+      blendColors: _random.nextBool(),
     );
   }
   
-  /// Adds a color to the palette
-  ColorPalette addColor(Color color) {
-    final newColors = List<Color>.from(colors)..add(color);
-    return copyWith(colors: newColors);
-  }
-  
-  /// Removes a color from the palette at the specified index
-  ColorPalette removeColor(int index) {
-    if (index < 0 || index >= colors.length || colors.length <= 1) {
-      return this;
-    }
-    final newColors = List<Color>.from(colors)..removeAt(index);
-    return copyWith(colors: newColors);
-  }
-  
-  /// Returns a color based on progress (0.0 to 1.0)
-  Color getColorAtProgress(double progress) {
-    if (colors.isEmpty) return Colors.white;
-    if (colors.length == 1) return colors.first.withOpacity(opacity);
-    
-    if (progress <= 0.0) return colors.first.withOpacity(opacity);
-    if (progress >= 1.0) return colors.last.withOpacity(opacity);
-    
-    if (gradientStops != null && gradientStops!.length == colors.length) {
-      // Use custom gradient stops
-      for (int i = 0; i < gradientStops!.length - 1; i++) {
-        if (progress >= gradientStops![i] && progress <= gradientStops![i + 1]) {
-          double localProgress = (progress - gradientStops![i]) / 
-              (gradientStops![i + 1] - gradientStops![i]);
-          return Color.lerp(
-            colors[i], 
-            colors[i + 1], 
-            localProgress
-          )!.withOpacity(opacity);
-        }
-      }
-      return colors.last.withOpacity(opacity);
-    } else {
-      // Evenly distributed colors
-      final segmentCount = colors.length - 1;
-      final segment = (progress * segmentCount).floor();
-      final localProgress = (progress * segmentCount) - segment;
-      
-      return Color.lerp(
-        colors[segment], 
-        colors[segment + 1], 
-        localProgress
-      )!.withOpacity(opacity);
-    }
-  }
-  
-  /// Returns a random color from the palette
+  /// Get a random color from the palette
   Color getRandomColor() {
+    if (colors.isEmpty) return Colors.white.withOpacity(opacity);
+    return colors[_random.nextInt(colors.length)].withOpacity(opacity);
+  }
+  
+  /// Get a color at a specific progress point (0.0 to 1.0)
+  Color getColorAtProgress(double progress) {
     if (colors.isEmpty) return Colors.white.withOpacity(opacity);
     if (colors.length == 1) return colors.first.withOpacity(opacity);
     
-    final random = DateTime.now().millisecondsSinceEpoch % colors.length;
-    return colors[random].withOpacity(opacity);
+    // Clamp progress to valid range
+    progress = progress.clamp(0.0, 1.0);
+    
+    if (!blendColors) {
+      // Select a discrete color based on progress
+      final index = (progress * colors.length).floor();
+      final clampedIndex = min(index, colors.length - 1);
+      return colors[clampedIndex].withOpacity(opacity);
+    } else {
+      // Interpolate between colors
+      final segmentCount = colors.length - 1;
+      final segment = (progress * segmentCount).floor();
+      final segmentProgress = (progress * segmentCount) - segment;
+      
+      final startColor = colors[segment];
+      final endColor = colors[min(segment + 1, colors.length - 1)];
+      
+      return Color.lerp(startColor, endColor, segmentProgress)!.withOpacity(opacity);
+    }
   }
   
-  /// Serializes to JSON
+  /// Create a copy with modified properties
+  ColorPalette copyWith({
+    List<Color>? colors,
+    ColorMode? colorMode,
+    double? opacity,
+    bool? blendColors,
+  }) {
+    return ColorPalette(
+      colors: colors ?? this.colors,
+      colorMode: colorMode ?? this.colorMode,
+      opacity: opacity ?? this.opacity,
+      blendColors: blendColors ?? this.blendColors,
+    );
+  }
+  
+  /// Convert to JSON map
   Map<String, dynamic> toJson() {
     return {
       'colors': colors.map((c) => c.value).toList(),
-      'gradientStops': gradientStops,
       'colorMode': colorMode.index,
       'opacity': opacity,
       'blendColors': blendColors,
-      'customSettings': customSettings,
     };
   }
   
-  /// Creates from JSON
+  /// Create from JSON map
   factory ColorPalette.fromJson(Map<String, dynamic> json) {
+    final List<dynamic> colorValues = json['colors'] as List<dynamic>? ?? [];
+    final List<Color> colors = colorValues
+        .map((c) => Color(c as int))
+        .toList();
+    
     return ColorPalette(
-      colors: (json['colors'] as List?)
-              ?.map((c) => Color(c as int))
-              .toList() ?? 
-          [Colors.blue, Colors.purple],
-      gradientStops: (json['gradientStops'] as List?)
-              ?.map((s) => (s as num).toDouble())
-              .toList(),
-      colorMode: ColorMode.values[json['colorMode'] ?? 0],
+      colors: colors.isEmpty ? [Colors.blue, Colors.cyan] : colors,
+      colorMode: ColorMode.values[json['colorMode'] as int? ?? 0],
       opacity: (json['opacity'] as num?)?.toDouble() ?? 0.8,
-      blendColors: json['blendColors'] ?? true,
-      customSettings: json['customSettings'] as Map<String, dynamic>? ?? {},
+      blendColors: json['blendColors'] as bool? ?? true,
     );
   }
   
   @override
-  List<Object?> get props => [
-    colors,
-    gradientStops,
-    colorMode,
-    opacity,
-    blendColors,
-    customSettings
-  ];
+  List<Object?> get props => [colors, colorMode, opacity, blendColors];
 }
