@@ -1,8 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'color_mode.dart';
+import 'package:myapp/core/models/color_mode.dart';
+import 'package:myapp/core/models/parameter_set.dart';
 
-/// Represents a color palette for generative art
+/// Represents a color palette for the generative art
 class ColorPalette {
   /// List of colors in the palette
   final List<Color> colors;

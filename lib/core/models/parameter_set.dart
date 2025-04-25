@@ -4,6 +4,16 @@ import '../algorithms/generative_algorithm.dart';
 import 'color_palette.dart';
 import 'color_mode.dart';
 
+enum ColorMode {
+  single,
+  gradient,
+  position,
+  velocity,
+  age,
+  random,
+  custom,
+}
+
 enum MovementBehavior {
   directed,
   orbit,
@@ -72,82 +82,6 @@ class ParameterSet {
     this.particleBlending = true,
   });
 
-  factory ParameterSet.defaultSettings() {
-    return ParameterSet(
-      canvasSize: const Size(800, 600),
-      colorPalette: ColorPalette(
-        colors: [Colors.blue, Colors.purple],
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'canvasSize': {'width': canvasSize.width, 'height': canvasSize.height},
-      'backgroundColor': backgroundColor.value,
-      'colorPalette': {
-        'colors': colorPalette.colors.map((c) => c.value).toList(),
-        'colorMode': colorPalette.colorMode.index,
-        'opacity': colorPalette.opacity,
-      },
-      'particleCount': particleCount,
-      'particleShape': particleShape.index,
-      'minParticleSize': minParticleSize,
-      'maxParticleSize': maxParticleSize,
-      'interactionRadius': interactionRadius,
-      'interactionStrength': interactionStrength,
-      'enableCollisions': enableCollisions,
-      'bounceFactor': bounceFactor,
-      'movementBehavior': movementBehavior.index,
-      'turbulence': turbulence,
-      'friction': friction,
-      'gravity': gravity,
-      'wind': wind,
-      'algorithmSpecificParams': algorithmSpecificParams,
-      'animate': animate,
-      'interactionEnabled': interactionEnabled,
-      'speed': speed,
-      'algorithmType': algorithmType.index,
-      'particleBlending': particleBlending,
-    };
-  }
-
-  factory ParameterSet.fromJson(Map<String, dynamic> json) {
-    return ParameterSet(
-      canvasSize: Size(
-        json['canvasSize']['width'] as double,
-        json['canvasSize']['height'] as double,
-      ),
-      backgroundColor: Color(json['backgroundColor'] as int),
-      colorPalette: ColorPalette(
-        colors: (json['colorPalette']['colors'] as List)
-            .map((c) => Color(c as int))
-            .toList(),
-        colorMode: ColorMode.values[json['colorPalette']['colorMode'] as int],
-        opacity: json['colorPalette']['opacity'] as double,
-      ),
-      particleCount: json['particleCount'] as int,
-      particleShape: ParticleShape.values[json['particleShape'] as int],
-      minParticleSize: json['minParticleSize'] as double,
-      maxParticleSize: json['maxParticleSize'] as double,
-      interactionRadius: json['interactionRadius'] as double,
-      interactionStrength: json['interactionStrength'] as double,
-      enableCollisions: json['enableCollisions'] as bool,
-      bounceFactor: json['bounceFactor'] as double,
-      movementBehavior: MovementBehavior.values[json['movementBehavior'] as int],
-      turbulence: json['turbulence'] as double,
-      friction: json['friction'] as double,
-      gravity: json['gravity'] as double,
-      wind: json['wind'] as double,
-      algorithmSpecificParams: json['algorithmSpecificParams'] as Map<String, dynamic>,
-      animate: json['animate'] as bool,
-      interactionEnabled: json['interactionEnabled'] as bool,
-      speed: json['speed'] as double,
-      algorithmType: AlgorithmType.values[json['algorithmType'] as int],
-      particleBlending: json['particleBlending'] as bool,
-    );
-  }
-
   ParameterSet copyWith({
     Size? canvasSize,
     Color? backgroundColor,
@@ -195,6 +129,73 @@ class ParameterSet {
       speed: speed ?? this.speed,
       algorithmType: algorithmType ?? this.algorithmType,
       particleBlending: particleBlending ?? this.particleBlending,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'canvasSize': {'width': canvasSize.width, 'height': canvasSize.height},
+      'backgroundColor': backgroundColor.value,
+      'colorPalette': colorPalette,
+      'particleCount': particleCount,
+      'particleShape': particleShape.index,
+      'minParticleSize': minParticleSize,
+      'maxParticleSize': maxParticleSize,
+      'interactionRadius': interactionRadius,
+      'interactionStrength': interactionStrength,
+      'enableCollisions': enableCollisions,
+      'bounceFactor': bounceFactor,
+      'movementBehavior': movementBehavior.index,
+      'turbulence': turbulence,
+      'friction': friction,
+      'gravity': gravity,
+      'wind': wind,
+      'algorithmSpecificParams': algorithmSpecificParams,
+      'animate': animate,
+      'interactionEnabled': interactionEnabled,
+      'speed': speed,
+      'algorithmType': algorithmType.index,
+      'particleBlending': particleBlending,
+    };
+  }
+
+  factory ParameterSet.fromJson(Map<String, dynamic> json) {
+    return ParameterSet(
+      canvasSize: Size(
+        json['canvasSize']['width'] as double,
+        json['canvasSize']['height'] as double,
+      ),
+      backgroundColor: Color(json['backgroundColor'] as int),
+      colorPalette: json['colorPalette'] as ColorPalette,
+      particleCount: json['particleCount'] as int,
+      particleShape: ParticleShape.values[json['particleShape'] as int],
+      minParticleSize: json['minParticleSize'] as double,
+      maxParticleSize: json['maxParticleSize'] as double,
+      interactionRadius: json['interactionRadius'] as double,
+      interactionStrength: json['interactionStrength'] as double,
+      enableCollisions: json['enableCollisions'] as bool,
+      bounceFactor: json['bounceFactor'] as double,
+      movementBehavior: MovementBehavior.values[json['movementBehavior'] as int],
+      turbulence: json['turbulence'] as double,
+      friction: json['friction'] as double,
+      gravity: json['gravity'] as double,
+      wind: json['wind'] as double,
+      algorithmSpecificParams: json['algorithmSpecificParams'] as Map<String, dynamic>,
+      animate: json['animate'] as bool,
+      interactionEnabled: json['interactionEnabled'] as bool,
+      speed: json['speed'] as double,
+      algorithmType: AlgorithmType.values[json['algorithmType'] as int],
+      particleBlending: json['particleBlending'] as bool? ?? true,
+    );
+  }
+
+  static ParameterSet defaultSettings() {
+    return ParameterSet(
+      canvasSize: const Size(800, 600),
+      colorPalette: ColorPalette(
+        colors: [Colors.blue, Colors.purple],
+        colorMode: ColorMode.gradient,
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:uuid/uuid.dart';
@@ -91,10 +92,10 @@ class ArtProject extends Equatable {
     return {
       'id': id,
       'name': name,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'modifiedAt': modifiedAt.millisecondsSinceEpoch,
+      'createdAt': createdAt.toIso8601String(),
+      'modifiedAt': modifiedAt.toIso8601String(),
       'parameters': parameters.toJson(),
-      'thumbnailData': thumbnailData?.toString(),
+      'thumbnailData': thumbnailData != null ? String.fromCharCodes(thumbnailData!) : null,
       'description': description,
       'tags': tags,
       'isFavorite': isFavorite,
@@ -106,11 +107,11 @@ class ArtProject extends Equatable {
     return ArtProject(
       id: json['id'],
       name: json['name'],
-      createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt']),
-      modifiedAt: DateTime.fromMillisecondsSinceEpoch(json['modifiedAt']),
+      createdAt: DateTime.parse(json['createdAt']),
+      modifiedAt: DateTime.parse(json['modifiedAt']),
       parameters: ParameterSet.fromJson(json['parameters']),
       thumbnailData: json['thumbnailData'] != null 
-          ? Uint8List.fromList(json['thumbnailData'].codeUnits) 
+          ? Uint8List.fromList((json['thumbnailData'] as String).codeUnits) 
           : null,
       description: json['description'],
       tags: List<String>.from(json['tags'] ?? []),
