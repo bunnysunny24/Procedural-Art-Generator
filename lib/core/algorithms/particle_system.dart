@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:vector_math/vector_math_64.dart';
 
 import '../models/parameter_set.dart';
@@ -181,41 +181,27 @@ class ParticleSystemAlgorithm {
     final colorPalette = params.colorPalette;
     
     switch (colorPalette.colorMode) {
-      case ColorMode.single:
-        // Single color mode just returns the first color
-        return colorPalette.colors.isNotEmpty
-            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
-            : Colors.white.withOpacity(colorPalette.opacity);
-        
-      case ColorMode.gradient:
-        // Gradient based on vertical position
-        final progress = position.y / params.canvasSize.height;
-        return colorPalette.getColorAtProgress(progress);
-        
       case ColorMode.position:
-        // Color based on 2D position
         final progressX = position.x / params.canvasSize.width;
         final progressY = position.y / params.canvasSize.height;
         final progress = (progressX + progressY) / 2;
         return colorPalette.getColorAtProgress(progress);
         
-      case ColorMode.velocity:
-        // This will be handled during update since velocity changes
-        return colorPalette.colors.isNotEmpty
-            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
-            : Colors.white.withOpacity(colorPalette.opacity);
-        
-      case ColorMode.age:
-        // This will be handled during update as age changes
-        return colorPalette.colors.isNotEmpty
-            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
-            : Colors.white.withOpacity(colorPalette.opacity);
+      case ColorMode.gradient:
+        final progress = position.y / params.canvasSize.height;
+        return colorPalette.getColorAtProgress(progress);
         
       case ColorMode.random:
-      case ColorMode.custom:
-      default:
-        // Random color from palette
         return colorPalette.getRandomColor();
+        
+      case ColorMode.single:
+      case ColorMode.velocity:
+      case ColorMode.age:
+      case ColorMode.custom:
+        if (colorPalette.colors.isEmpty) {
+          return material.Colors.white.withOpacity(colorPalette.opacity);
+        }
+        return colorPalette.colors.first.withOpacity(colorPalette.opacity);
     }
   }
   
