@@ -1,12 +1,10 @@
 import 'dart:math';
 import 'dart:ui';
-
 import 'package:flutter/material.dart' as material;
 import 'package:vector_math/vector_math_64.dart';
-
 import '../models/parameter_set.dart';
 import '../models/particle.dart';
-import '../models/color_palette.dart';
+import '../models/color_mode.dart';
 
 /// Implementation of a particle system algorithm for generative art
 class ParticleSystemAlgorithm {
@@ -186,14 +184,14 @@ class ParticleSystemAlgorithm {
         final progressY = position.y / params.canvasSize.height;
         final progress = (progressX + progressY) / 2;
         return colorPalette.getColorAtProgress(progress);
-        
+      
       case ColorMode.gradient:
         final progress = position.y / params.canvasSize.height;
         return colorPalette.getColorAtProgress(progress);
-        
+      
       case ColorMode.random:
         return colorPalette.getRandomColor();
-        
+      
       case ColorMode.single:
       case ColorMode.velocity:
       case ColorMode.age:

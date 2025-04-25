@@ -4,16 +4,6 @@ import '../algorithms/generative_algorithm.dart';
 import 'color_palette.dart';
 import 'color_mode.dart';
 
-enum ColorMode {
-  single,
-  gradient,
-  position,
-  velocity,
-  age,
-  random,
-  custom,
-}
-
 enum MovementBehavior {
   directed,
   orbit,
