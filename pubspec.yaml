@@ -22,6 +22,7 @@ dependencies:
   share_plus: ^7.2.1
   shared_preferences: ^2.2.2
   image: ^4.1.7
+  equatable: ^2.0.5
 
 dev_dependencies:
   flutter_test:
