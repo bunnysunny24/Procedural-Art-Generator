@@ -134,7 +134,7 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   Future<void> _shareArtwork() async {
     try {
       if (canvasKey.currentContext == null) return;
-      await ArtService.shareArtwork(parameters);
+      await ArtService.shareArtwork(canvasKey);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing artwork: $e')),
@@ -142,20 +142,6 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
     }
   }
   
-  void _saveCurrentState() {
-    if (canvasKey.currentState != null) {
-      // Save current state logic here
-    }
-  }
-
-  void _resetCanvas() {
-    if (canvasKey.currentState != null) {
-      setState(() {
-        // Reset canvas logic here
-      });
-    }
-  }
-
   Future<String?> _showNameDialog({required String initialName}) async {
     final controller = TextEditingController(text: initialName);
     

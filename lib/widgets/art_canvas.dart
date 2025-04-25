@@ -3,7 +3,6 @@ import '../core/algorithms/algorithm_factory.dart';
 import '../core/algorithms/generative_algorithm.dart';
 import '../core/models/parameter_set.dart';
 
-/// Custom painter for rendering the generative art
 class _ArtPainter extends CustomPainter {
   final GenerativeAlgorithm algorithm;
 
@@ -11,11 +10,6 @@ class _ArtPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.fill;
-
-    canvas.drawRect(Offset.zero & size, bgPaint);
     algorithm.render(canvas);
   }
 
@@ -23,7 +17,6 @@ class _ArtPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-/// Widget for displaying and interacting with generative art
 class ArtCanvas extends StatefulWidget {
   final ParameterSet parameters;
 
@@ -39,6 +32,7 @@ class ArtCanvas extends StatefulWidget {
 class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMixin {
   late GenerativeAlgorithm _algorithm;
   late AnimationController _controller;
+  double _lastUpdateTime = 0;
 
   @override
   void initState() {
@@ -47,7 +41,11 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
       vsync: this,
       duration: const Duration(milliseconds: 16), // ~60fps
     )..repeat();
-    _algorithm = AlgorithmFactory.createAlgorithm(widget.parameters);
+    
+    _algorithm = AlgorithmFactory.createAlgorithm(
+      widget.parameters.algorithmType,
+      widget.parameters,
+    );
   }
 
   @override
@@ -60,7 +58,10 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
   void didUpdateWidget(ArtCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.parameters != oldWidget.parameters) {
-      _algorithm = AlgorithmFactory.createAlgorithm(widget.parameters);
+      _algorithm = AlgorithmFactory.createAlgorithm(
+        widget.parameters.algorithmType,
+        widget.parameters,
+      );
     }
   }
 
@@ -68,9 +69,20 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     return GestureDetector(
       onPanUpdate: widget.parameters.interactionEnabled ? _handlePanUpdate : null,
-      child: CustomPaint(
-        painter: _ArtPainter(_algorithm),
-        size: Size.infinite,
+      onPanEnd: widget.parameters.interactionEnabled ? _handlePanEnd : null,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
+          final deltaTime = now - _lastUpdateTime;
+          _lastUpdateTime = now;
+          
+          _algorithm.update(deltaTime);
+          return CustomPaint(
+            painter: _ArtPainter(_algorithm),
+            size: Size.infinite,
+          );
+        },
       ),
     );
   }
@@ -78,6 +90,10 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
   void _handlePanUpdate(DragUpdateDetails details) {
     final box = context.findRenderObject() as RenderBox;
     final localPosition = box.globalToLocal(details.globalPosition);
-    _algorithm.handleInput(localPosition, true);
+    _algorithm.onInteraction(localPosition);
+  }
+
+  void _handlePanEnd(DragEndDetails details) {
+    _algorithm.onInteraction(null);
   }
 }

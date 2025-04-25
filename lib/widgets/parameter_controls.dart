@@ -368,7 +368,7 @@ class ParameterControls extends StatelessWidget {
           GestureDetector(
             onTap: () {
               _showColorPicker(
-                context: context,
+                dialogContext: context,
                 color: color,
                 onColorChanged: onColorChanged,
               );
@@ -404,7 +404,7 @@ class ParameterControls extends StatelessWidget {
               return GestureDetector(
                 onTap: () {
                   _showColorPicker(
-                    context: context,
+                    dialogContext: context,
                     color: color,
                     onColorChanged: (newColor) {
                       final newColors = List<Color>.from(parameters.customColors);
@@ -454,12 +454,12 @@ class ParameterControls extends StatelessWidget {
   }
 
   void _showColorPicker({
-    required BuildContext context,
+    required BuildContext dialogContext,
     required Color color,
     required Function(Color) onColorChanged,
   }) {
     showDialog(
-      context: context,
+      context: dialogContext,
       builder: (BuildContext context) {
         Color pickerColor = color;
         return AlertDialog(
