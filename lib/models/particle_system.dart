@@ -52,7 +52,6 @@ class ParticleSystem {
       case AnimationType.swirl:
       case AnimationType.bounce:
       case AnimationType.random:
-      default:
         // Random position
         return Vector2(
           random.nextDouble() * params.canvasSize.width,
@@ -64,33 +63,22 @@ class ParticleSystem {
   Vector2 _getInitialVelocity() {
     switch (params.animationType) {
       case AnimationType.explode:
-        // Radial velocity from center
         final angle = random.nextDouble() * 2 * pi;
         final magnitude = random.nextDouble() * 2.0 + 0.5;
         return Vector2(cos(angle) * magnitude, sin(angle) * magnitude);
       
       case AnimationType.flow:
-        // Horizontal flow with slight variation
         return Vector2(
           (random.nextDouble() * 2 - 1) * 0.5, 
           (random.nextDouble() * 2 - 1) * 0.1
         );
       
       case AnimationType.swirl:
-        // Initial velocity for swirl effect
         final angle = random.nextDouble() * 2 * pi;
         return Vector2(sin(angle) * 0.5, cos(angle) * 0.5);
       
       case AnimationType.bounce:
-        // Random velocity for bounce effect
-        return Vector2(
-          (random.nextDouble() * 2 - 1) * 2,
-          (random.nextDouble() * 2 - 1) * 2
-        );
-      
       case AnimationType.random:
-      default:
-        // Random velocity
         return Vector2(
           (random.nextDouble() * 2 - 1) * 0.5,
           (random.nextDouble() * 2 - 1) * 0.5
@@ -258,7 +246,6 @@ class ParticleSystem {
     final particle = particles[index];
     final collisionDistance = particle.size;
     
-    // Check against a subset of other particles 
     for (int j = (index + 1) % 5; j < particles.length; j += 5) {
       final other = particles[j];
       final dx = particle.position.x - other.position.x;
@@ -266,15 +253,12 @@ class ParticleSystem {
       final distance = sqrt(dx * dx + dy * dy);
       
       if (distance < collisionDistance && distance > 0) {
-        // Simple collision response
-        final angle = atan2(dy, dx);
         final magnitude = (collisionDistance - distance) * 0.05;
+        final dirX = dx / distance;
+        final dirY = dy / distance;
         
-        final forceX = cos(angle) * magnitude;
-        final forceY = sin(angle) * magnitude;
-        
-        particle.applyForce(Vector2(forceX, forceY));
-        other.applyForce(Vector2(-forceX, -forceY));
+        particle.applyForce(Vector2(dirX * magnitude, dirY * magnitude));
+        other.applyForce(Vector2(-dirX * magnitude, -dirY * magnitude));
       }
     }
   }

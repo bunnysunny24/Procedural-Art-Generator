@@ -18,7 +18,6 @@ abstract class GenerativeAlgorithm {
   void update(Duration delta);
   void render(Canvas canvas);
   void handleInput(Offset position, bool isActive);
-  
-  // Optional cleanup method for resources
-  void dispose() {}
+  void reset();
+  void updateParameters(ParameterSet newParameters);
 }

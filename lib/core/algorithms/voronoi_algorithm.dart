@@ -1,326 +1,248 @@
 import 'dart:math';
-import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Colors;
 import 'package:vector_math/vector_math_64.dart';
-
-import 'generative_algorithm.dart';
 import '../models/parameter_set.dart';
+import 'generative_algorithm.dart';
 
-/// Implementation of a Voronoi diagram algorithm
+class VoronoiPoint {
+  Vector2 position;
+  Vector2 velocity;
+  final Color color;
+
+  VoronoiPoint(this.position, this.velocity, this.color);
+}
+
 class VoronoiAlgorithm extends GenerativeAlgorithm {
-  /// List of points that define the Voronoi cells
-  late List<Vector2> _points;
-  
-  /// Cached image of the Voronoi diagram
-  ui.Image? _cachedImage;
-  
-  /// Whether the diagram needs to be regenerated
-  bool _needsRegeneration = true;
-  
-  /// Random number generator
+  final List<VoronoiPoint> _points = [];
   final Random _random = Random();
+  Offset? _interactionPoint;
   
-  VoronoiAlgorithm(super.parameters) {
+  VoronoiAlgorithm(ParameterSet parameters) : super(parameters) {
     _initialize();
   }
-  
+
   void _initialize() {
-    // Generate points for Voronoi cells
-    _generatePoints();
-    
-    // Mark for regeneration
-    _needsRegeneration = true;
-    _cachedImage = null;
-  }
-  
-  void _generatePoints() {
-    _points = [];
-    
-    // Get number of points from parameters or use default
+    _points.clear();
     final pointCount = parameters.algorithmSpecificParams['pointCount'] as int? ?? 20;
-    final canvasWidth = parameters.canvasSize.width;
-    final canvasHeight = parameters.canvasSize.height;
     
-    // Generate random points
+    final width = parameters.canvasSize.width;
+    final height = parameters.canvasSize.height;
+    
     for (int i = 0; i < pointCount; i++) {
-      _points.add(Vector2(
-        _random.nextDouble() * canvasWidth,
-        _random.nextDouble() * canvasHeight,
+      _points.add(VoronoiPoint(
+        Vector2(
+          _random.nextDouble() * width,
+          _random.nextDouble() * height,
+        ),
+        Vector2(
+          (_random.nextDouble() - 0.5) * 2,
+          (_random.nextDouble() - 0.5) * 2,
+        ),
+        parameters.colorPalette.getRandomColor(),
       ));
     }
   }
-  
+
   @override
-  void update() {
-    // Move points if animation is enabled
-    if (parameters.animate) {
-      _animatePoints();
-    }
+  void update(Duration delta) {
+    if (!parameters.animate) return;
     
-    // Handle interaction
-    if (parameters.interactionEnabled && interactionPoint != null) {
-      _handleInteraction();
-    }
+    final dt = delta.inMilliseconds / 1000.0;
+    _updatePoints(dt);
+    _handleInteraction();
   }
-  
-  void _animatePoints() {
-    final speed = parameters.speed * 0.5;
-    final canvasWidth = parameters.canvasSize.width;
-    final canvasHeight = parameters.canvasSize.height;
-    
-    for (int i = 0; i < _points.length; i++) {
-      // Apply simple random movement
-      _points[i].x += (_random.nextDouble() * 2 - 1) * speed;
-      _points[i].y += (_random.nextDouble() * 2 - 1) * speed;
+
+  void _updatePoints(double dt) {
+    for (final point in _points) {
+      point.position += point.velocity * dt * 50;
       
-      // Keep points within canvas bounds
-      _points[i].x = _points[i].x.clamp(0, canvasWidth);
-      _points[i].y = _points[i].y.clamp(0, canvasHeight);
-    }
-    
-    // Mark for regeneration
-    _needsRegeneration = true;
-  }
-  
-  void _handleInteraction() {
-    if (interactionPoint == null) return;
-    
-    final interactionVector = Vector2(interactionPoint!.dx, interactionPoint!.dy);
-    final interactionRadius = parameters.interactionRadius;
-    final interactionStrength = parameters.interactionStrength * 0.1;
-    
-    // Push nearby points away from the interaction point
-    for (int i = 0; i < _points.length; i++) {
-      final direction = _points[i] - interactionVector;
-      final distance = direction.length;
+      // Bounce off boundaries
+      final width = parameters.canvasSize.width;
+      final height = parameters.canvasSize.height;
       
-      if (distance < interactionRadius && distance > 0) {
-        // Calculate push force
-        direction.normalize();
-        final force = (1.0 - distance / interactionRadius) * interactionStrength;
-        direction.scale(force);
-        
-        // Apply force to point
-        _points[i] += direction;
+      if (point.position.x < 0) {
+        point.position.x = 0;
+        point.velocity.x *= -1;
+      }
+      if (point.position.x > width) {
+        point.position.x = width;
+        point.velocity.x *= -1;
+      }
+      if (point.position.y < 0) {
+        point.position.y = 0;
+        point.velocity.y *= -1;
+      }
+      if (point.position.y > height) {
+        point.position.y = height;
+        point.velocity.y *= -1;
       }
     }
-    
-    // Mark for regeneration
-    _needsRegeneration = true;
   }
-  
+
+  void _handleInteraction() {
+    if (!parameters.interactionEnabled || _interactionPoint == null) return;
+    
+    final interactionPos = Vector2(_interactionPoint!.dx, _interactionPoint!.dy);
+    final radius = parameters.interactionRadius;
+    final strength = parameters.interactionStrength * 0.1;
+    
+    for (final point in _points) {
+      final direction = point.position - interactionPos;
+      final distance = direction.length;
+      
+      if (distance < radius && distance > 0) {
+        direction.normalize();
+        direction.scale(strength * (1 - distance / radius));
+        point.velocity += direction;
+      }
+    }
+  }
+
   @override
   void render(Canvas canvas) {
     final width = parameters.canvasSize.width.toInt();
     final height = parameters.canvasSize.height.toInt();
     
-    // Generate or use cached image
-    if (_needsRegeneration || _cachedImage == null) {
-      _generateVoronoiImage(width, height);
-      _needsRegeneration = false;
-    }
-    
-    // Draw the cached image
-    if (_cachedImage != null) {
-      canvas.drawImage(_cachedImage!, Offset.zero, Paint());
-    }
-    
-    // Draw cell points if enabled
-    if (parameters.algorithmSpecificParams['showPoints'] == true) {
-      _drawPoints(canvas);
-    }
-    
-    // Draw interaction indicator
-    if (parameters.interactionEnabled && interactionPoint != null) {
-      final paint = Paint()
-        ..color = Colors.white.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-        
-      canvas.drawCircle(interactionPoint!, parameters.interactionRadius, paint);
-    }
-  }
-  
-  Future<void> _generateVoronoiImage(int width, int height) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    
-    // Draw background
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+      Offset.zero & parameters.canvasSize,
       Paint()..color = parameters.backgroundColor,
     );
-    
-    // Determine Voronoi mode
+
+    final cellSize = parameters.algorithmSpecificParams['cellSize'] as double? ?? 8.0;
     final mode = parameters.algorithmSpecificParams['mode'] as String? ?? 'default';
     final useGradients = parameters.algorithmSpecificParams['useGradients'] == true;
     
-    // Draw Voronoi cells using nearest point method
-    final cellSize = parameters.algorithmSpecificParams['cellSize'] as double? ?? 8.0;
-    final stepSize = cellSize.toInt();
-    
-    // Use step size for efficiency - not calculating every pixel
-    for (int y = 0; y < height; y += stepSize) {
-      for (int x = 0; x < width; x += stepSize) {
-        final point = Vector2(x.toDouble(), y.toDouble());
-        int nearestIndex = _findNearestPointIndex(point);
+    // Draw Voronoi cells
+    for (int y = 0; y < height; y += cellSize.toInt()) {
+      for (int x = 0; x < width; x += cellSize.toInt()) {
+        final pos = Vector2(x.toDouble(), y.toDouble());
+        final (index, dist) = _findClosestPoint(pos);
         
-        // Determine color based on mode
-        Color color;
-        
-        switch (mode) {
-          case 'distance':
-            // Color based on distance to nearest point
-            final distance = (point - _points[nearestIndex]).length;
-            final maxDist = sqrt(width * width + height * height);
-            final progress = distance / maxDist;
-            color = parameters.colorPalette.getColorAtProgress(progress);
-            break;
-            
-          case 'index':
-            // Color based on index of nearest point
-            final progress = nearestIndex / _points.length;
-            color = parameters.colorPalette.getColorAtProgress(progress);
-            break;
-            
-          case 'position':
-            // Color based on position of point
-            final progress = (_points[nearestIndex].x / width + _points[nearestIndex].y / height) / 2;
-            color = parameters.colorPalette.getColorAtProgress(progress);
-            break;
-            
-          case 'default':
-          default:
-            // Use index-based coloring
-            final progress = nearestIndex / _points.length;
-            color = parameters.colorPalette.getColorAtProgress(progress);
-            break;
-        }
-        
-        // Draw cell rectangle
-        final rect = Rect.fromLTWH(x.toDouble(), y.toDouble(), stepSize.toDouble(), stepSize.toDouble());
-        canvas.drawRect(rect, Paint()..color = color);
-      }
-    }
-    
-    // Draw borders if enabled
-    if (parameters.algorithmSpecificParams['showBorders'] == true) {
-      _drawVoronoiBorders(canvas, width, height);
-    }
-    
-    // Create image from canvas
-    final picture = recorder.endRecording();
-    _cachedImage = await picture.toImage(width, height);
-  }
-  
-  int _findNearestPointIndex(Vector2 target) {
-    // Find index of nearest point to target
-    int nearest = 0;
-    double minDist = double.infinity;
-    
-    for (int i = 0; i < _points.length; i++) {
-      final dist = (target - _points[i]).length2;
-      
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = i;
-      }
-    }
-    
-    return nearest;
-  }
-  
-  void _drawVoronoiBorders(Canvas canvas, int width, int height) {
-    // This is a simplified border detection algorithm
-    // A more accurate one would use Fortune's algorithm or similar
-    
-    final borderPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-      
-    final stepSize = 4; // Smaller step size for better border detection
-    
-    for (int y = 0; y < height; y += stepSize) {
-      for (int x = 0; x < width; x += stepSize) {
-        final point = Vector2(x.toDouble(), y.toDouble());
-        final currentIndex = _findNearestPointIndex(point);
-        
-        // Check neighboring pixels
-        bool isBorder = false;
-        
-        // Check right neighbor
-        if (x + stepSize < width) {
-          final rightPoint = Vector2((x + stepSize).toDouble(), y.toDouble());
-          final rightIndex = _findNearestPointIndex(rightPoint);
+        if (index >= 0) {
+          final point = _points[index];
+          Color color;
           
-          if (rightIndex != currentIndex) {
-            isBorder = true;
+          switch (mode) {
+            case 'distance':
+              final progress = (dist / (width / 2)).clamp(0.0, 1.0);
+              color = parameters.colorPalette.getColorAtProgress(1.0 - progress);
+              break;
+            case 'angle':
+              final angle = atan2(
+                pos.y - point.position.y,
+                pos.x - point.position.x,
+              );
+              final progress = ((angle + pi) / (2 * pi));
+              color = parameters.colorPalette.getColorAtProgress(progress);
+              break;
+            default:
+              color = point.color;
           }
-        }
-        
-        // Check bottom neighbor
-        if (!isBorder && y + stepSize < height) {
-          final bottomPoint = Vector2(x.toDouble(), (y + stepSize).toDouble());
-          final bottomIndex = _findNearestPointIndex(bottomPoint);
           
-          if (bottomIndex != currentIndex) {
-            isBorder = true;
-          }
-        }
-        
-        // Draw border pixel
-        if (isBorder) {
           canvas.drawRect(
-            Rect.fromLTWH(x.toDouble(), y.toDouble(), stepSize.toDouble(), stepSize.toDouble()),
-            borderPaint,
+            Rect.fromLTWH(x.toDouble(), y.toDouble(), cellSize, cellSize),
+            Paint()..color = color,
           );
         }
       }
     }
-  }
-  
-  void _drawPoints(Canvas canvas) {
-    final pointPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-      
-    for (final point in _points) {
-      canvas.drawCircle(Offset(point.x, point.y), 3, pointPaint);
+
+    // Draw borders if enabled
+    if (parameters.algorithmSpecificParams['showBorders'] == true) {
+      for (int y = 0; y < height; y += cellSize.toInt()) {
+        for (int x = 0; x < width; x += cellSize.toInt()) {
+          final pos = Vector2(x.toDouble(), y.toDouble());
+          final (currentIndex, _) = _findClosestPoint(pos);
+          
+          if (_isBorderCell(x, y, cellSize.toInt(), currentIndex)) {
+            canvas.drawRect(
+              Rect.fromLTWH(x.toDouble(), y.toDouble(), cellSize, cellSize),
+              Paint()
+                ..color = Colors.white.withOpacity(0.3)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1,
+            );
+          }
+        }
+      }
+    }
+
+    // Draw points
+    if (parameters.algorithmSpecificParams['showPoints'] == true) {
+      for (final point in _points) {
+        canvas.drawCircle(
+          Offset(point.position.x, point.position.y),
+          5,
+          Paint()..color = point.color,
+        );
+      }
+    }
+
+    // Draw interaction area
+    if (parameters.interactionEnabled && _interactionPoint != null) {
+      canvas.drawCircle(
+        _interactionPoint!,
+        parameters.interactionRadius,
+        Paint()
+          ..color = Colors.white.withOpacity(0.2)
+          ..style = PaintingStyle.stroke,
+      );
     }
   }
-  
+
+  (int, double) _findClosestPoint(Vector2 pos) {
+    var minDist = double.infinity;
+    var index = -1;
+    
+    for (int i = 0; i < _points.length; i++) {
+      final dist = (pos - _points[i].position).length;
+      if (dist < minDist) {
+        minDist = dist;
+        index = i;
+      }
+    }
+    
+    return (index, minDist);
+  }
+
+  bool _isBorderCell(int x, int y, int cellSize, int currentIndex) {
+    final neighbors = [
+      Vector2(x - cellSize.toDouble(), y.toDouble()),
+      Vector2(x + cellSize.toDouble(), y.toDouble()),
+      Vector2(x.toDouble(), y - cellSize.toDouble()),
+      Vector2(x.toDouble(), y + cellSize.toDouble()),
+    ];
+    
+    for (final neighbor in neighbors) {
+      if (neighbor.x >= 0 && neighbor.x < parameters.canvasSize.width &&
+          neighbor.y >= 0 && neighbor.y < parameters.canvasSize.height) {
+        final (neighborIndex, _) = _findClosestPoint(neighbor);
+        if (neighborIndex != currentIndex) return true;
+      }
+    }
+    
+    return false;
+  }
+
+  @override
+  void handleInput(Offset position, bool isActive) {
+    _interactionPoint = isActive ? position : null;
+  }
+
   @override
   void reset() {
     _initialize();
   }
-  
+
   @override
   void updateParameters(ParameterSet newParameters) {
-    final oldParams = parameters;
-    parameters = newParameters;
-    
-    // Reinitialize if essential parameters changed
-    if (oldParams.canvasSize != newParameters.canvasSize || 
-        oldParams.algorithmSpecificParams['pointCount'] != newParameters.algorithmSpecificParams['pointCount']) {
+    final needsReset = 
+      parameters.canvasSize != newParameters.canvasSize ||
+      parameters.algorithmSpecificParams['pointCount'] != 
+      newParameters.algorithmSpecificParams['pointCount'];
+
+    if (needsReset) {
       _initialize();
-    } else {
-      // Just mark for regeneration
-      _needsRegeneration = true;
     }
-  }
-  
-  @override
-  void handleInteraction(Offset? point) {
-    interactionPoint = point;
-    if (point != null) {
-      _needsRegeneration = true;
-    }
-  }
-  
-  @override
-  Future<ui.Image?> createPreview(Size size) async {
-    // Implementation will depend on how you plan to use previews
-    return null;
   }
 }

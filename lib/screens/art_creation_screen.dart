@@ -48,8 +48,7 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
       
       if (name != null && name.isNotEmpty) {
         final updatedParams = parameters.copyWith(name: name);
-        final artService = ArtService(updatedParams);
-        final success = await artService.saveParameters(updatedParams);
+        final success = await ArtService.saveParameters(updatedParams);
         
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -77,8 +76,7 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   
   Future<void> _loadParameters() async {
     try {
-      final artService = ArtService(parameters);
-      final savedParams = await artService.loadAllParameters();
+      final savedParams = await ArtService.loadAllParameters();
       if (savedParams.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No saved parameters found')),
@@ -112,9 +110,11 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
       
       if (canvasKey.currentState == null) return;
 
-      final artService = ArtService();
+      final artService = ArtService(parameters);
       final filePath = await artService.saveArtworkToFile();
       
+      if (filePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
       if (filePath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Artwork exported to: $filePath')),
@@ -138,8 +138,8 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   Future<void> _shareArtwork() async {
     try {
       if (canvasKey.currentState == null) return;
-      final artService = ArtService(parameters);
-      await artService.shareArtwork(parameters);
+      final particleSystem = ParticleSystem(parameters);
+      await ArtService.shareArtwork(particleSystem);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing artwork: $e')),

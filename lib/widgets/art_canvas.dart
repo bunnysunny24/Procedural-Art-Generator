@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../core/algorithms/algorithm_factory.dart';
 import '../core/algorithms/generative_algorithm.dart';
