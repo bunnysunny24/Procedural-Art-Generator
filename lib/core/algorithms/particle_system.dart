@@ -1,12 +1,11 @@
 import 'dart:math';
-import 'dart:ui';
-
 import 'package:flutter/material.dart' hide Colors;
-import 'package:vector_math/vector_math_64.dart';
-
+import 'package:vector_math/vector_math_64.dart' hide Colors;
+import 'package:flutter/material.dart' as material;
 import '../models/parameter_set.dart';
 import '../models/particle.dart';
 import '../models/color_palette.dart';
+import '../models/color_mode.dart;
 
 /// Implementation of a particle system algorithm for generative art
 class ParticleSystemAlgorithm {
@@ -102,7 +101,6 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.follow:
       case MovementBehavior.bounce:
       case MovementBehavior.random:
-      default:
         // Random position anywhere
         return Vector2(
           random.nextDouble() * width,
@@ -155,7 +153,6 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.attract:
       case MovementBehavior.repel:
       case MovementBehavior.random:
-      default:
         // Random velocity
         return Vector2(
           random.nextDouble() * 2 - 1,
@@ -263,7 +260,6 @@ class ParticleSystemAlgorithm {
         
       case MovementBehavior.directed:
       case MovementBehavior.bounce:
-      default:
         // These behaviors rely on initial velocities and edge handling
         break;
     }
@@ -592,43 +588,6 @@ class ParticleSystemAlgorithm {
   void render(Canvas canvas) {
     for (var particle in particles) {
       particle.render(canvas, params);
-    }
-  }
-  
-  /// Handle particle boundaries based on movement behavior
-  void _handleBoundaries(Particle particle) {
-    final position = particle.position;
-    final velocity = particle.velocity;
-    final size = particle.size;
-    final width = params.canvasSize.width;
-    final height = params.canvasSize.height;
-
-    switch (params.movementBehavior) {
-      case MovementBehavior.bounce:
-        // Bounce off edges
-        if (position.x < 0 || position.x > width) {
-          velocity.x *= -params.bounceFactor;
-          position.x = (position.x < 0) ? 0 : width;
-        }
-        if (position.y < 0 || position.y > height) {
-          velocity.y *= -params.bounceFactor;
-          position.y = (position.y < 0) ? 0 : height;
-        }
-        break;
-      
-      case MovementBehavior.follow:
-      case MovementBehavior.directed:
-      case MovementBehavior.random:
-      case MovementBehavior.orbit:
-      case MovementBehavior.wave:
-      case MovementBehavior.attract:
-      case MovementBehavior.repel:
-        // Wrap around edges
-        if (position.x < -size) position.x = width + size;
-        if (position.x > width + size) position.x = -size;
-        if (position.y < -size) position.y = height + size;
-        if (position.y > height + size) position.y = -size;
-        break;
     }
   }
 }
