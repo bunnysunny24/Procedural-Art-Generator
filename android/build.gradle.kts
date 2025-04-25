@@ -1,7 +1,7 @@
 buildscript {
-    ext {
-        kotlin_version = "1.9.20"
-        ndkVersion = "25.1.8937393"
+    extra.apply {
+        set("kotlin_version", "1.9.20")
+        set("ndkVersion", "25.1.8937393")
     }
     repositories {
         google()
@@ -9,7 +9,7 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:8.1.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${project.extra["kotlin_version"]}")
     }
 }
 
