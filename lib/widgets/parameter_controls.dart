@@ -129,9 +129,9 @@ class ParameterControls extends StatelessWidget {
             _buildColorModeSelector(),
             if (parameters.colorMode == ColorMode.single || 
                 parameters.colorMode == ColorMode.gradient) 
-              _buildColorPickers(),
+              _buildColorPickers(context),
             if (parameters.colorMode == ColorMode.custom)
-              _buildCustomColorPalette(),
+              _buildCustomColorPalette(context),
             
             _buildSectionHeader('Interaction'),
             _buildSwitch(
@@ -328,7 +328,7 @@ class ParameterControls extends StatelessWidget {
     );
   }
 
-  Widget _buildColorPickers() {
+  Widget _buildColorPickers(BuildContext context) {
     return Column(
       children: [
         _buildColorPickerButton(
@@ -388,7 +388,7 @@ class ParameterControls extends StatelessWidget {
     );
   }
 
-  Widget _buildCustomColorPalette() {
+  Widget _buildCustomColorPalette(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -470,25 +470,19 @@ class ParameterControls extends StatelessWidget {
               onColorChanged: (Color color) {
                 pickerColor = color;
               },
-              pickerAreaHeightPercent: 0.8,
-              enableAlpha: true,
-              displayThumbColor: true,
-              paletteType: PaletteType.hsv,
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
             ),
             TextButton(
-              child: const Text('Apply'),
               onPressed: () {
                 onColorChanged(pickerColor);
                 Navigator.of(context).pop();
               },
+              child: const Text('Apply'),
             ),
           ],
         );

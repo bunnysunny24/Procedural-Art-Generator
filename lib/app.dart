@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_text_styles.dart';
-import 'features/canvas/canvas_screen.dart';
-import 'features/project_management/project_list_screen.dart';
+import 'screens/art_creation_screen.dart';
 
 class ProceduralArtGeneratorApp extends ConsumerWidget {
   const ProceduralArtGeneratorApp({super.key});
@@ -12,7 +11,7 @@ class ProceduralArtGeneratorApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'Procedural Art Generator',
+      title: 'Generative Art',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -43,10 +42,9 @@ class ProceduralArtGeneratorApp extends ConsumerWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: const ProjectListScreen(),
+      home: const ArtCreationScreen(),
       routes: {
-        '/canvas': (context) => const CanvasScreen(),
-        '/projects': (context) => const ProjectListScreen(),
+        '/create': (context) => const ArtCreationScreen(),
       },
     );
   }

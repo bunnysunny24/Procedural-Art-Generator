@@ -42,14 +42,14 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
     });
     
     try {
-      // Show dialog to get a name for the parameters
       final String? name = await _showNameDialog(
         initialName: parameters.name,
       );
       
       if (name != null && name.isNotEmpty) {
         final updatedParams = parameters.copyWith(name: name);
-        final success = await ArtService.saveParameters(updatedParams);
+        final artService = ArtService(updatedParams);
+        final success = await artService.saveParameters(updatedParams);
         
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +77,8 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   
   Future<void> _loadParameters() async {
     try {
-      final savedParams = await ArtService.loadAllParameters();
+      final artService = ArtService(parameters);
+      final savedParams = await artService.loadAllParameters();
       if (savedParams.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No saved parameters found')),
@@ -85,7 +86,6 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
         return;
       }
       
-      // Show dialog to select parameters
       final selectedParams = await _showLoadDialog(savedParams);
       if (selectedParams != null) {
         setState(() {
@@ -105,22 +105,15 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
     });
     
     try {
-      // Show format selection dialog
       final format = await _showExportFormatDialog();
       if (format == null) {
         return;
       }
       
-      // Find the particle canvas and get its particle system
-      final particleCanvas = canvasKey.currentWidget as ParticleCanvas;
-      final particleCanvasState = canvasKey.currentState as _ParticleCanvasState;
-      final particleSystem = particleCanvasState.particleSystem;
-      
-      // Export the artwork
-      final filePath = await ArtService.saveArtworkToFile(
-        particleSystem,
-        format,
-      );
+      if (canvasKey.currentState == null) return;
+
+      final artService = ArtService();
+      final filePath = await artService.saveArtworkToFile();
       
       if (filePath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,11 +137,9 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   
   Future<void> _shareArtwork() async {
     try {
-      // Get the particle system from the canvas
-      final particleCanvasState = canvasKey.currentState as _ParticleCanvasState;
-      final particleSystem = particleCanvasState.particleSystem;
-      
-      await ArtService.shareArtwork(particleSystem);
+      if (canvasKey.currentState == null) return;
+      final artService = ArtService(parameters);
+      await artService.shareArtwork(parameters);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing artwork: $e')),
@@ -156,6 +147,20 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
     }
   }
   
+  void _saveCurrentState() {
+    if (canvasKey.currentState != null) {
+      // Save current state logic here
+    }
+  }
+
+  void _resetCanvas() {
+    if (canvasKey.currentState != null) {
+      setState(() {
+        // Reset canvas logic here
+      });
+    }
+  }
+
   Future<String?> _showNameDialog({required String initialName}) async {
     final controller = TextEditingController(text: initialName);
     

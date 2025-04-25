@@ -18,6 +18,9 @@ enum ExportFormat { png, jpg, svg }
 
 class ArtService {
   static const String _savedParametersKey = 'saved_art_parameters';
+  final ArtParameters params;
+
+  ArtService(this.params);
   
   // Save parameters to local storage
   static Future<bool> saveParameters(ArtParameters parameters) async {
@@ -161,42 +164,32 @@ class ArtService {
   }
   
   // Save artwork to gallery or file
-  static Future<String?> saveArtworkToFile(
-    ParticleSystem particleSystem, 
-    ExportFormat format
-  ) async {
+  Future<String?> saveArtworkToFile() async {
     try {
-      // Show file picker to get save location and filename
-      FilePickerResult? result = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Your Artwork',
-        fileName: 'generative_art.${format.name}',
-        allowedExtensions: [format.name],
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Artwork',
+        fileName: 'artwork.png',
+        allowedExtensions: ['png'],
       );
-      
+
       if (result != null) {
-        final outputPath = result;
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/temp_artwork.png';
+        final tempFile = File(tempPath);
         
-        // Export the artwork to the selected format
-        final tempFilePath = await exportArtwork(
-          particleSystem, 
-          format,
-        );
+        // Save the artwork to temporary file
+        await _saveCanvasToFile(tempFile);
         
-        if (tempFilePath != null) {
-          // Copy from temp to selected destination
-          final tempFile = File(tempFilePath);
-          final outputFile = File(outputPath);
-          await tempFile.copy(outputPath);
-          
-          return outputPath;
-        }
+        // Copy to final destination
+        await tempFile.copy(result);
+        await tempFile.delete();
+        
+        return result;
       }
-      
-      return null;
     } catch (e) {
-      print('Error saving artwork to file: $e');
-      return null;
+      debugPrint('Error saving artwork: $e');
     }
+    return null;
   }
   
   // Helper to capture image from particle system
@@ -216,5 +209,38 @@ class ArtService {
     
     final picture = recorder.endRecording();
     return await picture.toImage(size.width.toInt(), size.height.toInt());
+  }
+
+  Future<void> _saveCanvasToFile(File file) async {
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      
+      // Draw the current state
+      final size = params.canvasSize;
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = params.backgroundColor,
+      );
+      
+      // Get the current state of the canvas
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(
+        params.canvasSize.width.toInt(),
+        params.canvasSize.height.toInt()
+      );
+      
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final buffer = byteData?.buffer;
+      
+      if (buffer != null) {
+        await file.writeAsBytes(
+          buffer.asUint8List(byteData!.offsetInBytes, byteData.lengthInBytes)
+        );
+      }
+    } catch (e) {
+      debugPrint('Error in _saveCanvasToFile: $e');
+      rethrow;
+    }
   }
 }

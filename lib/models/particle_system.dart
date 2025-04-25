@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Colors;
 import 'package:vector_math/vector_math_64.dart';
 import 'art_parameters.dart';
 import 'particle.dart';
@@ -107,27 +107,32 @@ class ParticleSystem {
     switch (params.colorMode) {
       case ColorMode.single:
         return params.primaryColor;
-        
       case ColorMode.gradient:
-        // Create gradient effect based on position
         final progress = position.y / params.canvasSize.height;
         return Color.lerp(params.primaryColor, params.secondaryColor, progress) 
             ?? params.primaryColor;
-        
       case ColorMode.rainbow:
-        // Cycle through hue values
         final hue = (position.x / params.canvasSize.width * 360) % 360;
         return HSVColor.fromAHSV(1.0, hue, 1.0, 1.0).toColor();
-        
       case ColorMode.custom:
-        // Pick a random color from custom colors
         if (params.customColors.isEmpty) {
-          return Colors.white;
+          return const Color(0xFFFFFFFF);
         }
         return params.customColors[random.nextInt(params.customColors.length)];
     }
   }
-  
+
+  void _updateParticlePosition(Particle particle) {
+    final vx = particle.velocity.x;
+    final vy = particle.velocity.y;
+    final distance = sqrt(vx * vx + vy * vy);
+    
+    if (distance > 0) {
+      particle.position.x += (vx / distance) * params.speed;
+      particle.position.y += (vy / distance) * params.speed;
+    }
+  }
+
   void update() {
     // Apply animation behavior based on type
     _applyAnimationBehavior();

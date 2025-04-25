@@ -1,28 +1,24 @@
 import 'dart:ui';
+import '../models/parameter_set.dart';
 
-import 'package:flutter/material.dart';
-import '../../models/art_parameters.dart';
+enum AlgorithmType {
+  particleSystem,
+  flowField,
+  fractal,
+  cellularAutomata,
+  voronoi,
+  waveFunctionCollapse,
+}
 
-/// Base class for all generative algorithms
 abstract class GenerativeAlgorithm {
-  /// The parameters for this algorithm
-  final ArtParameters parameters;
-  
-  /// Constructor
+  final ParameterSet parameters;
+
   GenerativeAlgorithm(this.parameters);
-  
-  /// Initialize the algorithm
-  void initialize();
-  
-  /// Update the algorithm with the given time delta
-  void update(double deltaTime);
-  
-  /// Render the current state to the canvas
+
+  void update(Duration delta);
   void render(Canvas canvas);
+  void handleInput(Offset position, bool isActive);
   
-  /// Handle user interaction at the given position
-  void handleInteraction(Offset position, bool isActive);
-  
-  /// Called when parameters are updated
-  void onParametersUpdated();
+  // Optional cleanup method for resources
+  void dispose() {}
 }
