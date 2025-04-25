@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:math' as math;
 
 /// Extensions on the [Offset] class
 extension OffsetExtensions on Offset {

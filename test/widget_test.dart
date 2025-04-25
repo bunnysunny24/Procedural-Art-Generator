@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:procedural_art_generator/main.dart';
 import 'package:procedural_art_generator/app.dart';
 import 'package:procedural_art_generator/screens/art_creation_screen.dart';
 import 'package:procedural_art_generator/widgets/parameter_controls.dart';

@@ -10,6 +10,7 @@ class ParticleSystem {
   final Random random = Random();
   late ArtParameters params;
   Offset? interactionPoint;
+  DateTime? _lastUpdateTime;
   
   ParticleSystem(this.params) {
     _initializeParticles();
@@ -110,17 +111,6 @@ class ParticleSystem {
     }
   }
 
-  void _updateParticlePosition(Particle particle) {
-    final vx = particle.velocity.x;
-    final vy = particle.velocity.y;
-    final distance = sqrt(vx * vx + vy * vy);
-    
-    if (distance > 0) {
-      particle.position.x += (vx / distance) * params.speed;
-      particle.position.y += (vy / distance) * params.speed;
-    }
-  }
-
   void update() {
     // Apply animation behavior based on type
     _applyAnimationBehavior();
@@ -162,17 +152,17 @@ class ParticleSystem {
             final angle = atan2(dy, dx);
             final swirlFactor = 0.1; // Controls how tight the swirl is
             
-            // Perpendicular force for swirling
+            // Tangential force based on angle
             particle.applyForce(Vector2(
-              -dy * swirlFactor / distance,
-              dx * swirlFactor / distance,
+              cos(angle + pi/2) * swirlFactor,
+              sin(angle + pi/2) * swirlFactor
             ));
             
-            // Slight inward/outward force
-            final radialFactor = sin(distance * 0.01) * 0.02;
+            // Slight inward/outward force using angle
+            final radialFactor = sin(angle * 3) * 0.02;
             particle.applyForce(Vector2(
-              -dx * radialFactor / distance,
-              -dy * radialFactor / distance,
+              cos(angle) * radialFactor,
+              sin(angle) * radialFactor
             ));
           }
         }
