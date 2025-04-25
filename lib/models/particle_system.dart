@@ -10,7 +10,6 @@ class ParticleSystem {
   final Random random = Random();
   late ArtParameters params;
   Offset? interactionPoint;
-  DateTime? _lastUpdateTime;
   
   ParticleSystem(this.params) {
     _initializeParticles();
