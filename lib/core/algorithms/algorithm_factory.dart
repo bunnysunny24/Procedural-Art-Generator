@@ -1,73 +1,40 @@
 import 'dart:ui';
 
 import '../models/parameter_set.dart';
-import 'particle_system.dart';
-import 'flow_field.dart';
+import 'generative_algorithm.dart';
+import 'particle_system_algorithm.dart';
+import 'flow_field_algorithm.dart';
+import 'fractal_algorithm.dart';
+import 'cellular_automata_algorithm.dart';
+import 'voronoi_algorithm.dart';
+import 'wave_function_collapse_algorithm.dart';
 
-/// Abstract base class for all art generation algorithms
-abstract class GenerativeAlgorithm {
-  /// Update the algorithm simulation
-  void update();
-  
-  /// Render the current state to a canvas
-  void render(Canvas canvas);
-  
-  /// Update the parameters used by the algorithm
-  void updateParameters(ParameterSet params);
-  
-  /// Handle user interaction at the specified point
-  void handleInteraction(Offset? point);
-}
-
-/// Factory for creating appropriate algorithm instances
+/// Factory class to create appropriate algorithm instances based on parameters
 class AlgorithmFactory {
-  /// Create a new algorithm instance based on parameter set
-  static GenerativeAlgorithm createAlgorithm(ParameterSet params) {
-    switch (params.algorithmType) {
-      case AlgorithmType.flowField:
-        return _FlowFieldAdapter(params);
-        
+  /// Create a generative algorithm based on parameter set
+  static GenerativeAlgorithm createAlgorithm(ParameterSet parameters) {
+    switch (parameters.algorithmType) {
       case AlgorithmType.particleSystem:
+        return ParticleSystemAlgorithm(parameters);
+        
+      case AlgorithmType.flowField:
+        return FlowFieldAlgorithm(parameters);
+        
+      case AlgorithmType.fractal:
+        return FractalAlgorithm(parameters);
+        
+      case AlgorithmType.cellularAutomata:
+        return CellularAutomataAlgorithm(parameters);
+      
+      case AlgorithmType.voronoi:
+        return VoronoiAlgorithm(parameters);
+        
+      case AlgorithmType.waveFunctionCollapse:
+        return WaveFunctionCollapseAlgorithm(parameters);
+        
       default:
-        return _ParticleSystemAdapter(params);
+        // Default to particle system if unknown
+        return ParticleSystemAlgorithm(parameters);
     }
   }
-}
-
-/// Adapter to make ParticleSystemAlgorithm conform to GenerativeAlgorithm
-class _ParticleSystemAdapter implements GenerativeAlgorithm {
-  final ParticleSystemAlgorithm _algorithm;
-  
-  _ParticleSystemAdapter(ParameterSet params) : _algorithm = ParticleSystemAlgorithm(params);
-  
-  @override
-  void update() => _algorithm.update();
-  
-  @override
-  void render(Canvas canvas) => _algorithm.render(canvas);
-  
-  @override
-  void updateParameters(ParameterSet params) => _algorithm.updateParameters(params);
-  
-  @override
-  void handleInteraction(Offset? point) => _algorithm.handleInteraction(point);
-}
-
-/// Adapter to make FlowFieldAlgorithm conform to GenerativeAlgorithm
-class _FlowFieldAdapter implements GenerativeAlgorithm {
-  final FlowFieldAlgorithm _algorithm;
-  
-  _FlowFieldAdapter(ParameterSet params) : _algorithm = FlowFieldAlgorithm(params);
-  
-  @override
-  void update() => _algorithm.update();
-  
-  @override
-  void render(Canvas canvas) => _algorithm.render(canvas);
-  
-  @override
-  void updateParameters(ParameterSet params) => _algorithm.updateParameters(params);
-  
-  @override
-  void handleInteraction(Offset? point) => _algorithm.handleInteraction(point);
 }
