@@ -158,6 +158,7 @@ class ParameterControls extends StatelessWidget {
             
             _buildSectionHeader('Canvas'),
             _buildColorPickerButton(
+              context: context,
               label: 'Background',
               color: parameters.backgroundColor,
               onColorChanged: (color) {
@@ -332,6 +333,7 @@ class ParameterControls extends StatelessWidget {
     return Column(
       children: [
         _buildColorPickerButton(
+          context: context,
           label: 'Primary Color',
           color: parameters.primaryColor,
           onColorChanged: (color) {
@@ -342,6 +344,7 @@ class ParameterControls extends StatelessWidget {
         ),
         if (parameters.colorMode == ColorMode.gradient)
           _buildColorPickerButton(
+            context: context,
             label: 'Secondary Color',
             color: parameters.secondaryColor,
             onColorChanged: (color) {
@@ -355,6 +358,7 @@ class ParameterControls extends StatelessWidget {
   }
 
   Widget _buildColorPickerButton({
+    required BuildContext context,
     required String label,
     required Color color,
     required Function(Color) onColorChanged,

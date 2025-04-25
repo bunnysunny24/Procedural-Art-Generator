@@ -134,7 +134,8 @@ class _ArtCreationScreenState extends State<ArtCreationScreen> {
   Future<void> _shareArtwork() async {
     try {
       if (canvasKey.currentContext == null) return;
-      await ArtService.shareArtwork(canvasKey);
+      final particleSystem = ParticleSystem(parameters);
+      await ArtService.shareArtwork(particleSystem);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error sharing artwork: $e')),

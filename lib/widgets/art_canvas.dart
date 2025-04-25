@@ -32,7 +32,6 @@ class ArtCanvas extends StatefulWidget {
 class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMixin {
   late GenerativeAlgorithm _algorithm;
   late AnimationController _controller;
-  double _lastUpdateTime = 0;
 
   @override
   void initState() {
@@ -73,10 +72,9 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          final now = DateTime.now().millisecondsSinceEpoch / 1000.0;
-          final deltaTime = now - _lastUpdateTime;
-          _lastUpdateTime = now;
-          
+          final deltaTime = Duration(
+            microseconds: (_controller.value * 16666.67).round(), // Convert to ~60fps timing
+          );
           _algorithm.update(deltaTime);
           return CustomPaint(
             painter: _ArtPainter(_algorithm),
@@ -90,10 +88,10 @@ class _ArtCanvasState extends State<ArtCanvas> with SingleTickerProviderStateMix
   void _handlePanUpdate(DragUpdateDetails details) {
     final box = context.findRenderObject() as RenderBox;
     final localPosition = box.globalToLocal(details.globalPosition);
-    _algorithm.onInteraction(localPosition);
+    _algorithm.updateInteraction(localPosition);
   }
 
   void _handlePanEnd(DragEndDetails details) {
-    _algorithm.onInteraction(null);
+    _algorithm.updateInteraction(null);
   }
 }
