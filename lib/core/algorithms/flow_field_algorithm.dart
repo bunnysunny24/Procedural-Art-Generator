@@ -329,80 +329,104 @@ class FlowFieldAlgorithm extends GenerativeAlgorithm {
         final center = Offset(centerX, centerY);
         
         final angle = _flowField[x][y];
-        final lineLength = min(_cellWidth, _cellHeight) * 0.8;
+        final length = _cellWidth * 0.4; // Length of the line
         
-        final end = center + Offset(
-          cos(angle) * lineLength / 2,
-          sin(angle) * lineLength / 2
+        final endpoint = Offset(
+          centerX + cos(angle) * length,
+          centerY + sin(angle) * length
         );
         
-        canvas.drawLine(center, end, fieldPaint);
+        canvas.drawLine(center, endpoint, fieldPaint);
       }
     }
   }
   
   @override
   void handleInteraction(Offset position, bool isActive) {
-    if (isActive) {
-      // Create a disturbance in the flow field centered at the touch position
-      final disturbanceRadius = parameters.getDouble('touchDisturbanceRadius', 100);
-      final disturbanceStrength = parameters.getDouble('touchDisturbanceStrength', 2.0);
+    if (!isActive) return;
+    
+    // Add some particles at the interaction point
+    final interactionRadius = parameters.getDouble('interactionRadius', 50);
+    final particleBurst = parameters.getInt('interactionParticles', 10);
+    
+    for (int i = 0; i < particleBurst; i++) {
+      // Create particles in a radius around the interaction point
+      final angle = _random.nextDouble() * 2 * pi;
+      final distance = _random.nextDouble() * interactionRadius;
       
-      for (int x = 0; x < _gridResolutionX; x++) {
-        for (int y = 0; y < _gridResolutionY; y++) {
-          final cellCenterX = x * _cellWidth + _cellWidth / 2;
-          final cellCenterY = y * _cellHeight + _cellHeight / 2;
-          final cellCenter = Offset(cellCenterX, cellCenterY);
-          
-          // Calculate distance to touch
-          final distance = (position - cellCenter).distance;
-          
-          // Apply disturbance if within radius
-          if (distance < disturbanceRadius) {
-            // Calculate angle pointing away from touch
-            final angle = atan2(
-              cellCenterY - position.dy,
-              cellCenterX - position.dx
-            );
-            
-            // Calculate strength based on distance (stronger closer to touch)
-            final strength = 1 - (distance / disturbanceRadius);
-            
-            // Modify flow field
-            _flowField[x][y] = angle * strength * disturbanceStrength + 
-              _flowField[x][y] * (1 - strength);
-          }
-        }
+      final particlePos = Offset(
+        position.dx + cos(angle) * distance,
+        position.dy + sin(angle) * distance
+      );
+      
+      // Skip if outside canvas bounds
+      if (particlePos.dx < 0 || 
+          particlePos.dx > parameters.canvasSize.width ||
+          particlePos.dy < 0 || 
+          particlePos.dy > parameters.canvasSize.height) {
+        continue;
       }
       
-      // Also add some new particles at the touch position
-      final touchParticleCount = parameters.getInt('touchParticleCount', 20);
+      // Create particle with random velocity
+      final velocity = Offset(
+        _random.nextDouble() * 2 - 1,
+        _random.nextDouble() * 2 - 1
+      ) * (parameters.getDouble('maxSpeed', 100) * 0.5);
       
-      for (int i = 0; i < touchParticleCount; i++) {
-        final angle = _random.nextDouble() * 2 * pi;
-        final speed = parameters.getDouble('maxSpeed', 100) * _random.nextDouble();
+      // Get color based on position or random based on color mode
+      final colorProgress = particlePos.dx / parameters.canvasSize.width;
+      final color = parameters.colorPalette.getColorAtProgress(colorProgress);
+      
+      // Add new particle
+      _particles.add(FlowParticle(
+        position: particlePos,
+        velocity: velocity,
+        maxSpeed: parameters.getDouble('maxSpeed', 100),
+        color: color,
+        maxLifetime: parameters.getDouble('particleLifetime', 10),
+        size: parameters.getDouble('particleSize', 3),
+        maxHistory: parameters.getInt('trailLength', 20),
+      ));
+      
+      // Optionally, add some turbulence to the flow field around the interaction point
+      if (parameters.getBool('interactionAffectsField', true)) {
+        // Create a ripple effect in the flow field
+        // This could be improved with a more sophisticated approach
+        _addRippleToFlowField(position);
+      }
+    }
+  }
+  
+  /// Adds a ripple effect to the flow field around the specified position
+  void _addRippleToFlowField(Offset position) {
+    final rippleRadius = parameters.getDouble('rippleRadius', 100);
+    final rippleStrength = parameters.getDouble('rippleStrength', 0.5);
+    
+    // Get grid cell of the center of the ripple
+    final centerX = position.dx / _cellWidth;
+    final centerY = position.dy / _cellHeight;
+    
+    // Calculate cells affected by the ripple
+    final cellRadius = (rippleRadius / _cellWidth).ceil();
+    
+    // Apply ripple to all cells within radius
+    for (int x = 0; x < _gridResolutionX; x++) {
+      for (int y = 0; y < _gridResolutionY; y++) {
+        // Calculate distance from ripple center
+        final dx = x - centerX;
+        final dy = y - centerY;
+        final distance = sqrt(dx * dx + dy * dy);
         
-        final velocity = Offset(
-          cos(angle) * speed,
-          sin(angle) * speed
-        );
-        
-        final offset = Offset(
-          (_random.nextDouble() - 0.5) * 20,
-          (_random.nextDouble() - 0.5) * 20
-        );
-        
-        final colorProgress = position.dx / parameters.canvasSize.width;
-        
-        _particles.add(FlowParticle(
-          position: position + offset,
-          velocity: velocity,
-          maxSpeed: parameters.getDouble('maxSpeed', 100),
-          color: parameters.colorPalette.getColorAtProgress(colorProgress),
-          maxLifetime: parameters.getDouble('particleLifetime', 10),
-          size: parameters.getDouble('particleSize', 3),
-          maxHistory: parameters.getInt('trailLength', 20),
-        ));
+        if (distance < cellRadius) {
+          // Calculate angle pointing away from ripple center
+          final angle = atan2(dy, dx);
+          
+          // Calculate ripple effect strength based on distance
+          final effect = (1 - distance / cellRadius) * rippleStrength;
+          
+          // Blend current flow field angle with ripple angle
+          _flowField[x][y] = _flowField[x][y] * (1 - effect) + angle * effect;
+        }
       }
     }
   }
