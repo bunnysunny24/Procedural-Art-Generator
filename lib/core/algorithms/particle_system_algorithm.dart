@@ -1,372 +1,134 @@
 import 'dart:math';
-import 'dart:ui' as ui;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart';
 
-import 'algorithm_factory.dart';
 import '../models/parameter_set.dart';
 import '../models/particle.dart';
+import '../models/color_palette.dart';
+import 'generative_algorithm.dart';
 
-/// Implementation of a particle system algorithm
-class ParticleSystemAlgorithm implements GenerativeAlgorithm {
-  /// Current parameter set for this algorithm
-  final ParameterSet parameters;
-  
-  /// List of particles in the system
+/// Implementation of particle system generative algorithm
+class ParticleSystemAlgorithm extends GenerativeAlgorithm {
+  /// List of all particles in the system
   final List<Particle> _particles = [];
   
   /// Random number generator
   final Random _random = Random();
   
-  /// Current interaction point for user interaction
+  /// Current interaction point
   Offset? _interactionPoint;
   
-  /// Constructor
-  ParticleSystemAlgorithm(this.parameters) {
-    _initializeParticles();
-  }
+  /// Whether interaction is currently active
+  bool _interactionActive = false;
   
-  /// Initialize all particles based on current parameters
-  void _initializeParticles() {
+  ParticleSystemAlgorithm(super.parameters) {
+    initialize();
+  }
+
+  @override
+  void initialize() {
     _particles.clear();
-    
-    for (int i = 0; i < parameters.particleCount; i++) {
-      _createParticle();
-    }
-  }
-  
-  /// Create a single particle with properties based on parameters
-  void _createParticle() {
-    final position = _getRandomPosition();
-    final velocity = _getRandomVelocity();
-    final size = _getRandomSize();
-    final color = _getParticleColor(position);
-    
-    _particles.add(
-      Particle(
-        position: position,
-        velocity: velocity,
-        acceleration: Vector2(0, 0),
-        size: size,
-        color: color,
-        shape: parameters.particleShape,
-        decay: _random.nextDouble() * 0.005 + 0.001,
-      ),
-    );
-  }
-  
-  /// Get a random position for a new particle
-  Vector2 _getRandomPosition() {
-    return Vector2(
-      _random.nextDouble() * parameters.canvasSize.width,
-      _random.nextDouble() * parameters.canvasSize.height,
-    );
-  }
-  
-  /// Get a random velocity based on movement behavior
-  Vector2 _getRandomVelocity() {
-    double maxSpeed = parameters.speed;
-    
-    switch (parameters.movementBehavior) {
-      case MovementBehavior.directed:
-        // Velocity in a general direction (mostly right/down)
-        return Vector2(
-          _random.nextDouble() * maxSpeed * 0.8 + maxSpeed * 0.2,
-          _random.nextDouble() * maxSpeed * 0.8 + maxSpeed * 0.2,
-        );
-        
-      case MovementBehavior.follow:
-      case MovementBehavior.orbit:
-        // Start with very little velocity for these behaviors
-        return Vector2(
-          (_random.nextDouble() * 0.4 - 0.2) * maxSpeed,
-          (_random.nextDouble() * 0.4 - 0.2) * maxSpeed,
-        );
-        
-      case MovementBehavior.random:
-      default:
-        // Completely random velocity
-        return Vector2(
-          (_random.nextDouble() * 2 - 1) * maxSpeed,
-          (_random.nextDouble() * 2 - 1) * maxSpeed,
-        );
-    }
-  }
-  
-  /// Get a random size for a new particle
-  double _getRandomSize() {
-    return parameters.minParticleSize + 
-      _random.nextDouble() * (parameters.maxParticleSize - parameters.minParticleSize);
-  }
-  
-  /// Get a color for a particle based on position and color mode
-  Color _getParticleColor(Vector2 position) {
-    switch (parameters.colorPalette.colorMode) {
-      case ColorMode.position:
-        // Base color on position in the canvas
-        final progress = position.x / parameters.canvasSize.width;
-        return parameters.colorPalette.getColorAtProgress(progress);
-        
-      case ColorMode.random:
-        // Get a random color from the palette
-        return parameters.colorPalette.getRandomColor();
-        
-      case ColorMode.single:
-        // Use the first color in the palette
-        return parameters.colorPalette.colors.first.withOpacity(parameters.colorPalette.opacity);
-        
-      case ColorMode.gradient:
-        // Base color on Y position for vertical gradient
-        final progress = position.y / parameters.canvasSize.height;
-        return parameters.colorPalette.getColorAtProgress(progress);
-        
-      case ColorMode.custom:
-      case ColorMode.velocity:
-      case ColorMode.age:
-      default:
-        // Default to first color if mode not implemented
-        return parameters.colorPalette.colors.first.withOpacity(parameters.colorPalette.opacity);
-    }
+    _createParticles();
   }
   
   @override
   void update() {
-    // Apply the specific movement behavior
-    _applyMovementBehavior();
+    _updateParticles();
     
-    // Apply interaction forces if enabled
-    if (parameters.interactionEnabled && _interactionPoint != null) {
+    if (_interactionActive && _interactionPoint != null && parameters.interactionEnabled) {
       _applyInteractionForces();
     }
     
-    // Update each particle
-    for (int i = _particles.length - 1; i >= 0; i--) {
-      _particles[i].update(parameters);
-      
-      // Replace dead particles
-      if (!_particles[i].isAlive()) {
-        _particles[i] = _createReplacementParticle();
-      }
-    }
-    
-    // Handle collisions if enabled
     if (parameters.enableCollisions) {
       _handleCollisions();
     }
   }
   
-  /// Apply forces based on the current movement behavior
-  void _applyMovementBehavior() {
-    switch (parameters.movementBehavior) {
-      case MovementBehavior.orbit:
-        _applyOrbitBehavior();
-        break;
-        
-      case MovementBehavior.follow:
-        _applyFollowBehavior();
-        break;
-        
-      case MovementBehavior.attract:
-        _applyAttractionBehavior(true);
-        break;
-        
-      case MovementBehavior.repel:
-        _applyAttractionBehavior(false);
-        break;
-        
-      case MovementBehavior.wave:
-        _applyWaveBehavior();
-        break;
-        
-      case MovementBehavior.bounce:
-      case MovementBehavior.directed:
-      case MovementBehavior.random:
-      default:
-        // These behaviors are handled in particle update or initial velocity
-        break;
+  @override
+  void render(Canvas canvas, Size size) {
+    // Draw background
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint()..color = parameters.backgroundColor,
+    );
+    
+    // Draw all particles
+    for (final particle in _particles) {
+      particle.render(canvas, parameters);
+    }
+    
+    // Draw interaction indicator if active
+    if (parameters.interactionEnabled && _interactionPoint != null && _interactionActive) {
+      canvas.drawCircle(
+        _interactionPoint!,
+        parameters.interactionRadius * 0.5,
+        Paint()
+          ..color = Colors.white.withOpacity(0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
     }
   }
   
-  /// Apply orbit behavior where particles orbit around center
-  void _applyOrbitBehavior() {
-    final centerX = parameters.canvasSize.width / 2;
-    final centerY = parameters.canvasSize.height / 2;
+  @override
+  void handleInteraction(Offset? position, bool isPressed) {
+    _interactionPoint = position;
+    _interactionActive = isPressed;
+  }
+  
+  @override
+  void reset() {
+    initialize();
+  }
+  
+  @override
+  void updateParameters(ParameterSet newParameters) {
+    // Check if particle count or shape changed - requires recreating particles
+    final needsRecreate = 
+        parameters.particleCount != newParameters.particleCount ||
+        parameters.particleShape != newParameters.particleShape;
     
-    for (var particle in _particles) {
-      final dx = particle.position.x - centerX;
-      final dy = particle.position.y - centerY;
-      final distance = sqrt(dx * dx + dy * dy);
-      
-      if (distance > 0) {
-        // Apply perpendicular force to create orbital motion
-        particle.applyForce(Vector2(
-          -dy * 0.0001 * parameters.speed,
-          dx * 0.0001 * parameters.speed,
-        ));
-        
-        // Apply slight attractive force to keep particles in orbit
-        particle.applyForce(Vector2(
-          -dx * 0.00001 * distance,
-          -dy * 0.00001 * distance,
-        ));
-      }
+    // Update the parameters
+    parameters.copyWith(
+      particleCount: newParameters.particleCount,
+      particleShape: newParameters.particleShape,
+      particleBlending: newParameters.particleBlending,
+      minParticleSize: newParameters.minParticleSize,
+      maxParticleSize: newParameters.maxParticleSize,
+      speed: newParameters.speed,
+      turbulence: newParameters.turbulence,
+      friction: newParameters.friction,
+      gravity: newParameters.gravity,
+      wind: newParameters.wind,
+      enableCollisions: newParameters.enableCollisions,
+      interactionEnabled: newParameters.interactionEnabled,
+      interactionStrength: newParameters.interactionStrength,
+      interactionRadius: newParameters.interactionRadius,
+      colorPalette: newParameters.colorPalette,
+    );
+    
+    if (needsRecreate) {
+      initialize();
     }
   }
   
-  /// Apply follow behavior where particles follow each other
-  void _applyFollowBehavior() {
-    if (_particles.isEmpty) return;
-    
-    // Each particle follows the one ahead of it
-    for (int i = 0; i < _particles.length; i++) {
-      final followIndex = (i + 1) % _particles.length;
-      final particle = _particles[i];
-      final target = _particles[followIndex];
-      
-      final dx = target.position.x - particle.position.x;
-      final dy = target.position.y - particle.position.y;
-      final distance = sqrt(dx * dx + dy * dy);
-      
-      if (distance > 0) {
-        // Apply force toward target
-        particle.applyForce(Vector2(
-          dx * 0.001 * parameters.speed,
-          dy * 0.001 * parameters.speed,
-        ));
-      }
+  @override
+  void dispose() {
+    _particles.clear();
+  }
+  
+  /// Create initial particles
+  void _createParticles() {
+    for (int i = 0; i < parameters.particleCount; i++) {
+      _particles.add(_createParticle());
     }
   }
   
-  /// Apply attraction or repulsion behavior
-  void _applyAttractionBehavior(bool attract) {
-    final centerX = parameters.canvasSize.width / 2;
-    final centerY = parameters.canvasSize.height / 2;
-    final direction = attract ? -1.0 : 1.0;
-    
-    for (var particle in _particles) {
-      final dx = particle.position.x - centerX;
-      final dy = particle.position.y - centerY;
-      final distanceSquared = dx * dx + dy * dy;
-      
-      if (distanceSquared > 1) {
-        // Force inversely proportional to distance squared
-        final force = direction * 10 / distanceSquared;
-        
-        particle.applyForce(Vector2(
-          dx * force * parameters.speed,
-          dy * force * parameters.speed,
-        ));
-      }
-    }
-  }
-  
-  /// Apply wave-like motion
-  void _applyWaveBehavior() {
-    final time = DateTime.now().millisecondsSinceEpoch * 0.001;
-    
-    for (var particle in _particles) {
-      final waveX = sin(particle.position.x * 0.01 + time) * 0.03;
-      final waveY = cos(particle.position.y * 0.01 + time) * 0.03;
-      
-      particle.applyForce(Vector2(
-        waveX * parameters.speed,
-        waveY * parameters.speed,
-      ));
-    }
-  }
-  
-  /// Apply forces from user interaction
-  void _applyInteractionForces() {
-    if (_interactionPoint == null) return;
-    
-    final interactionVector = Vector2(_interactionPoint!.dx, _interactionPoint!.dy);
-    final radius = parameters.interactionRadius;
-    
-    for (var particle in _particles) {
-      final direction = interactionVector - particle.position;
-      final distance = direction.length;
-      
-      if (distance < radius && distance > 0) {
-        // Normalize and scale force based on distance
-        direction.normalize();
-        final force = 1.0 - (distance / radius);
-        direction.scale(force * parameters.interactionStrength * 0.1);
-        
-        particle.applyForce(direction);
-      }
-    }
-  }
-  
-  /// Handle collisions between particles
-  void _handleCollisions() {
-    if (_particles.length < 2) return;
-    
-    // Simple collision detection (optimization potential: spatial partitioning)
-    for (int i = 0; i < _particles.length; i++) {
-      final particleA = _particles[i];
-      
-      // Only check a subset of particles to improve performance
-      for (int j = (i + 1) % 5; j < _particles.length; j += 5) {
-        final particleB = _particles[j];
-        final collisionThreshold = (particleA.size + particleB.size) / 2;
-        
-        final dx = particleB.position.x - particleA.position.x;
-        final dy = particleB.position.y - particleA.position.y;
-        final distance = sqrt(dx * dx + dy * dy);
-        
-        if (distance < collisionThreshold && distance > 0) {
-          // Simple collision response
-          final nx = dx / distance;
-          final ny = dy / distance;
-          
-          final relativeVelocityX = particleB.velocity.x - particleA.velocity.x;
-          final relativeVelocityY = particleB.velocity.y - particleA.velocity.y;
-          
-          final impulse = (relativeVelocityX * nx + relativeVelocityY * ny) * 
-                        parameters.bounceFactor;
-          
-          // Apply forces in opposite directions
-          particleA.applyForce(Vector2(nx * impulse, ny * impulse));
-          particleB.applyForce(Vector2(-nx * impulse, -ny * impulse));
-        }
-      }
-    }
-  }
-  
-  /// Create a replacement for a dead particle
-  Particle _createReplacementParticle() {
-    // Position new particles at the edge of screen based on movement behavior
-    final side = _random.nextInt(4);
-    Vector2 position;
-    
-    switch (side) {
-      case 0: // Top
-        position = Vector2(
-          _random.nextDouble() * parameters.canvasSize.width,
-          -5,
-        );
-        break;
-      case 1: // Right
-        position = Vector2(
-          parameters.canvasSize.width + 5,
-          _random.nextDouble() * parameters.canvasSize.height,
-        );
-        break;
-      case 2: // Bottom
-        position = Vector2(
-          _random.nextDouble() * parameters.canvasSize.width,
-          parameters.canvasSize.height + 5,
-        );
-        break;
-      case 3: // Left
-      default:
-        position = Vector2(
-          -5,
-          _random.nextDouble() * parameters.canvasSize.height,
-        );
-        break;
-    }
-    
+  /// Create a single particle with randomized properties
+  Particle _createParticle() {
+    final position = _getRandomPosition();
     final velocity = _getRandomVelocity();
     final size = _getRandomSize();
     final color = _getParticleColor(position);
@@ -378,44 +140,195 @@ class ParticleSystemAlgorithm implements GenerativeAlgorithm {
       size: size,
       color: color,
       shape: parameters.particleShape,
+      decay: _random.nextDouble() * 0.005 + 0.001,
     );
   }
   
-  @override
-  void render(Canvas canvas) {
-    // Draw particles
-    for (final particle in _particles) {
-      particle.render(canvas, parameters);
+  /// Generate a random position within canvas bounds
+  Vector2 _getRandomPosition() {
+    return Vector2(
+      _random.nextDouble() * parameters.canvasSize.width,
+      _random.nextDouble() * parameters.canvasSize.height,
+    );
+  }
+  
+  /// Generate a random velocity based on movement behavior
+  Vector2 _getRandomVelocity() {
+    switch (parameters.movementBehavior) {
+      case MovementBehavior.directed:
+        // All particles move in roughly the same direction
+        final baseAngle = pi / 4; // 45 degrees
+        final angle = baseAngle + (_random.nextDouble() - 0.5) * 0.5;
+        final speed = 0.5 + _random.nextDouble() * 1.0;
+        return Vector2(cos(angle) * speed, sin(angle) * speed);
+        
+      case MovementBehavior.orbit:
+        // Orbital-like motion
+        final angle = _random.nextDouble() * 2 * pi;
+        final speed = 0.3 + _random.nextDouble() * 0.7;
+        return Vector2(cos(angle) * speed, sin(angle) * speed);
+        
+      case MovementBehavior.wave:
+        // Wave-like motion
+        return Vector2(
+          (_random.nextDouble() * 2 - 1) * 0.3,
+          (_random.nextDouble() * 2 - 1) * 0.3,
+        );
+        
+      case MovementBehavior.bounce:
+        // Faster movement for bouncing
+        return Vector2(
+          (_random.nextDouble() * 2 - 1) * 2.0,
+          (_random.nextDouble() * 2 - 1) * 2.0,
+        );
+        
+      case MovementBehavior.random:
+      default:
+        // Random direction with moderate speed
+        return Vector2(
+          (_random.nextDouble() * 2 - 1) * 1.0,
+          (_random.nextDouble() * 2 - 1) * 1.0,
+        );
+    }
+  }
+  
+  /// Generate a random particle size within the min/max range
+  double _getRandomSize() {
+    return parameters.minParticleSize + 
+      _random.nextDouble() * (parameters.maxParticleSize - parameters.minParticleSize);
+  }
+  
+  /// Get particle color based on position and color palette settings
+  Color _getParticleColor(Vector2 position) {
+    final colorPalette = parameters.colorPalette;
+    
+    switch (colorPalette.colorMode) {
+      case ColorMode.single:
+        // Use the first color in the palette
+        return colorPalette.colors.isNotEmpty 
+            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
+            : Colors.white.withOpacity(colorPalette.opacity);
+        
+      case ColorMode.gradient:
+        // Position-based gradient
+        final progress = position.y / parameters.canvasSize.height;
+        return colorPalette.getColorAtProgress(progress);
+        
+      case ColorMode.position:
+        // 2D position mapping
+        final xProgress = position.x / parameters.canvasSize.width;
+        final yProgress = position.y / parameters.canvasSize.height;
+        final progress = (xProgress + yProgress) / 2;
+        return colorPalette.getColorAtProgress(progress);
+        
+      case ColorMode.random:
+        // Random color from palette
+        return colorPalette.getRandomColor();
+        
+      default:
+        // Default to first color
+        return colorPalette.colors.isNotEmpty 
+            ? colorPalette.colors.first.withOpacity(colorPalette.opacity)
+            : Colors.white.withOpacity(colorPalette.opacity);
+    }
+  }
+  
+  /// Update all particles
+  void _updateParticles() {
+    for (int i = _particles.length - 1; i >= 0; i--) {
+      _particles[i].update(parameters);
+      
+      // Replace dead particles
+      if (!_particles[i].isAlive()) {
+        _particles[i] = _createParticle();
+      }
+    }
+  }
+  
+  /// Apply forces to particles based on interaction point
+  void _applyInteractionForces() {
+    if (_interactionPoint == null) return;
+    
+    final interactionVector = Vector2(_interactionPoint!.dx, _interactionPoint!.dy);
+    final interactionRadius = parameters.interactionRadius;
+    final strength = parameters.interactionStrength;
+    
+    for (var particle in _particles) {
+      final direction = interactionVector - particle.position;
+      final distance = direction.length;
+      
+      if (distance < interactionRadius && distance > 0) {
+        // Normalize and scale force based on distance
+        direction.normalize();
+        final force = 1.0 - (distance / interactionRadius);
+        direction.scale(force * strength * 0.05);
+        particle.applyForce(direction);
+      }
+    }
+  }
+  
+  /// Handle collisions between particles
+  void _handleCollisions() {
+    // For large numbers of particles, use simplified collision detection
+    if (_particles.length > 1000) {
+      _handleSimplifiedCollisions();
+      return;
     }
     
-    // Optionally draw interaction indicator
-    if (parameters.interactionEnabled && _interactionPoint != null) {
-      final paint = Paint()
-        ..color = Colors.white.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
+    // Full collision detection
+    for (int i = 0; i < _particles.length; i++) {
+      final particleA = _particles[i];
+      
+      for (int j = i + 1; j < _particles.length; j++) {
+        final particleB = _particles[j];
+        final dx = particleA.position.x - particleB.position.x;
+        final dy = particleA.position.y - particleB.position.y;
+        final distance = sqrt(dx * dx + dy * dy);
         
-      canvas.drawCircle(_interactionPoint!, parameters.interactionRadius, paint);
+        // Collision if distance is less than sum of radii
+        final minDistance = (particleA.size + particleB.size) / 2.0;
+        if (distance < minDistance && distance > 0) {
+          // Simple collision response
+          final angle = atan2(dy, dx);
+          final overlap = minDistance - distance;
+          final responseForce = overlap * 0.01 * parameters.bounceFactor;
+          
+          final forceX = cos(angle) * responseForce;
+          final forceY = sin(angle) * responseForce;
+          
+          particleA.applyForce(Vector2(forceX, forceY));
+          particleB.applyForce(Vector2(-forceX, -forceY));
+        }
+      }
     }
   }
   
-  @override
-  void updateParameters(ParameterSet params) {
-    // Check if we need to reinitialize particles
-    if (params.particleCount != parameters.particleCount ||
-        params.particleShape != parameters.particleShape ||
-        params.algorithmType != parameters.algorithmType) {
-      // Update parameters and reinit
-      parameters = params;
-      _initializeParticles();
-    } else {
-      // Just update parameters
-      parameters = params;
+  /// Simplified collision detection for large particle counts
+  void _handleSimplifiedCollisions() {
+    // Spatial partitioning would be better but for simplicity:
+    // Just check a subset of particles against others
+    for (int i = 0; i < _particles.length; i += 5) {
+      final particleA = _particles[i];
+      
+      for (int j = i + 1; j < min(i + 20, _particles.length); j++) {
+        final particleB = _particles[j];
+        final distance = particleA.distanceTo(particleB);
+        
+        // Collision if distance is less than sum of radii
+        final minDistance = (particleA.size + particleB.size) / 2.0;
+        if (distance < minDistance && distance > 0) {
+          final dx = particleA.position.x - particleB.position.x;
+          final dy = particleA.position.y - particleB.position.y;
+          final angle = atan2(dy, dx);
+          final responseForce = (minDistance - distance) * 0.01 * parameters.bounceFactor;
+          
+          final forceX = cos(angle) * responseForce;
+          final forceY = sin(angle) * responseForce;
+          
+          particleA.applyForce(Vector2(forceX, forceY));
+          particleB.applyForce(Vector2(-forceX, -forceY));
+        }
+      }
     }
-  }
-  
-  @override
-  void handleInteraction(Offset? point) {
-    _interactionPoint = point;
   }
 }

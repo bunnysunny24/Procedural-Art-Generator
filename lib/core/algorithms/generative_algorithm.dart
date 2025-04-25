@@ -1,37 +1,37 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import '../models/parameter_set.dart';
 
-/// Base abstract class for all generative art algorithms
+/// Abstract base class for all generative algorithms in the application.
+/// 
+/// This class defines the common interface and functionality that all
+/// specific algorithm implementations must provide.
 abstract class GenerativeAlgorithm {
-  /// Current parameter set for this algorithm
+  /// The parameters controlling the algorithm's behavior
   ParameterSet parameters;
   
-  /// Current interaction point for user interaction
-  Offset? interactionPoint;
-  
-  /// Constructor that requires parameters
+  /// Constructor that takes algorithm parameters
   GenerativeAlgorithm(this.parameters);
   
-  /// Update the algorithm state for the next frame
+  /// Initialize the algorithm with current parameters
+  void initialize();
+  
+  /// Update algorithm state for the next frame
   void update();
   
-  /// Render the current state to a canvas
-  void render(Canvas canvas);
+  /// Render the current state to the canvas
+  void render(Canvas canvas, Size size);
   
-  /// Handle user interaction with the canvas
-  void handleInteraction(Offset? point) {
-    interactionPoint = point;
-  }
+  /// Handle user interaction
+  void handleInteraction(Offset? position, bool isPressed);
   
-  /// Update the algorithm parameters
-  void updateParameters(ParameterSet newParameters) {
-    parameters = newParameters;
-  }
-  
-  /// Reset the algorithm to its initial state
+  /// Reset the algorithm to initial state
   void reset();
   
-  /// Create a preview image of this algorithm
-  Future<Image?> createPreview(Size size);
+  /// Update algorithm parameters
+  void updateParameters(ParameterSet newParameters);
+  
+  /// Clean up resources
+  void dispose();
 }
