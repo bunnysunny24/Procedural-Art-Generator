@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:uuid/uuid.dart';
 import 'parameter_set.dart';
