@@ -72,17 +72,12 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.directed:
         // Start from one edge
         final side = random.nextInt(4);
-        switch (side) {
-          case 0: // top
-            return Vector2(random.nextDouble() * width, 0);
-          case 1: // right
-            return Vector2(width, random.nextDouble() * height);
-          case 2: // bottom
-            return Vector2(random.nextDouble() * width, height);
-          case 3: // left
-          default:
-            return Vector2(0, random.nextDouble() * height);
-        }
+        return switch (side) {
+          0 => Vector2(random.nextDouble() * width, 0), // top
+          1 => Vector2(width, random.nextDouble() * height), // right
+          2 => Vector2(random.nextDouble() * width, height), // bottom
+          _ => Vector2(0, random.nextDouble() * height), // left
+        };
         
       case MovementBehavior.attract:
       case MovementBehavior.repel:
@@ -100,7 +95,6 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.follow:
       case MovementBehavior.bounce:
       case MovementBehavior.random:
-      default:
         // Random position anywhere
         return Vector2(
           random.nextDouble() * width,
@@ -153,7 +147,6 @@ class ParticleSystemAlgorithm {
       case MovementBehavior.attract:
       case MovementBehavior.repel:
       case MovementBehavior.random:
-      default:
         // Random velocity
         return Vector2(
           random.nextDouble() * 2 - 1,
@@ -261,7 +254,6 @@ class ParticleSystemAlgorithm {
         
       case MovementBehavior.directed:
       case MovementBehavior.bounce:
-      default:
         // These behaviors rely on initial velocities and edge handling
         break;
     }

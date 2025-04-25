@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'parameter_set.dart';
-import 'color_palette.dart';
 
 /// Represents an individual particle in a particle system
 class Particle {
